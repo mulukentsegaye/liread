@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../feed/presentation/discover_feed_screen.dart';
+import '../../profile/presentation/reader_profile_screen.dart';
 import '../../timer/presentation/reading_timer_screen.dart';
 
 /// Root scaffold with bottom navigation hosting the four main tabs.
@@ -22,12 +23,12 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   late int _currentIndex;
 
-  // Tab screens — DiscoverFeedScreen, ReadingTimerScreen, ReadingJourneyScreen, Profile.
+  // All four main app screens: Feed, Read, Journey, Profile.
   final List<Widget> _screens = const [
     DiscoverFeedScreen(),
     ReadingTimerScreen(),
     ReadingJourneyScreen(),
-    _PlaceholderTab(icon: Icons.person_rounded, label: 'Profile'),
+    ReaderProfileScreen(),
   ];
 
   @override
@@ -132,38 +133,6 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Placeholder widget for tabs that aren't built yet.
-class _PlaceholderTab extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _PlaceholderTab({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: AppColors.tabInactive),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Coming soon',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
       ),
     );
   }

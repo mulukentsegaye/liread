@@ -1,26 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../feed/presentation/discover_feed_screen.dart';
+import '../../timer/presentation/reading_timer_screen.dart';
 
 /// Root scaffold with bottom navigation hosting the four main tabs.
 class MainNavigationShell extends StatefulWidget {
-  const MainNavigationShell({super.key});
+  final int initialIndex;
+
+  const MainNavigationShell({
+    super.key,
+    this.initialIndex = 0,
+  });
 
   @override
   State<MainNavigationShell> createState() => _MainNavigationShellState();
 }
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
-  int _currentIndex = 0;
+  late int _currentIndex;
 
-  // Tab screens — placeholders for Read, Journey, Profile.
+  // Tab screens — DiscoverFeedScreen, ReadingTimerScreen, Journey, Profile.
   final List<Widget> _screens = const [
     DiscoverFeedScreen(),
-    _PlaceholderTab(icon: Icons.menu_book_rounded, label: 'Read'),
+    ReadingTimerScreen(),
     _PlaceholderTab(icon: Icons.bar_chart_rounded, label: 'Journey'),
     _PlaceholderTab(icon: Icons.person_rounded, label: 'Profile'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +43,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         children: _screens,
       ),
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: AppColors.surface,
           border: Border(
             top: BorderSide(
@@ -39,29 +52,82 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             ),
           ),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.layers_outlined),
-              activeIcon: Icon(Icons.layers_rounded),
-              label: 'Feed',
+        padding: const EdgeInsets.only(top: 8, bottom: 12),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavItem(
+                index: 0,
+                icon: Icons.layers_outlined,
+                activeIcon: Icons.layers_rounded,
+                label: 'Feed',
+              ),
+              _buildNavItem(
+                index: 1,
+                icon: Icons.menu_book_outlined,
+                activeIcon: Icons.menu_book_rounded,
+                label: 'Read',
+              ),
+              _buildNavItem(
+                index: 2,
+                icon: Icons.bar_chart_outlined,
+                activeIcon: Icons.bar_chart_rounded,
+                label: 'Journey',
+              ),
+              _buildNavItem(
+                index: 3,
+                icon: Icons.person_outline_rounded,
+                activeIcon: Icons.person_rounded,
+                label: 'Profile',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+  }) {
+    final isSelected = _currentIndex == index;
+
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = index),
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Active pill indicator around the icon
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                color: isSelected ? const Color(0xFFE2EBE5) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                size: 22,
+                color: isSelected ? AppColors.primary : AppColors.iconDefault,
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.menu_book_outlined),
-              activeIcon: Icon(Icons.menu_book_rounded),
-              label: 'Read',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined),
-              activeIcon: Icon(Icons.bar_chart_rounded),
-              label: 'Journey',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline_rounded),
-              activeIcon: Icon(Icons.person_rounded),
-              label: 'Profile',
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? AppColors.primary : AppColors.tabInactive,
+              ),
             ),
           ],
         ),

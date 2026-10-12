@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../feed/presentation/discover_feed_screen.dart';
 import '../../timer/presentation/reading_timer_screen.dart';
 
@@ -21,11 +22,11 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   late int _currentIndex;
 
-  // Tab screens — DiscoverFeedScreen, ReadingTimerScreen, Journey, Profile.
+  // Tab screens — DiscoverFeedScreen, ReadingTimerScreen, ReadingJourneyScreen, Profile.
   final List<Widget> _screens = const [
     DiscoverFeedScreen(),
     ReadingTimerScreen(),
-    _PlaceholderTab(icon: Icons.bar_chart_rounded, label: 'Journey'),
+    ReadingJourneyScreen(),
     _PlaceholderTab(icon: Icons.person_rounded, label: 'Profile'),
   ];
 

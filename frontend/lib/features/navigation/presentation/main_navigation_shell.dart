@@ -4,10 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../feed/presentation/discover_feed_screen.dart';
+import '../../leaderboard/data/reading_session_store.dart';
+import '../../leaderboard/presentation/leaderboard_screen.dart';
 import '../../profile/presentation/reader_profile_screen.dart';
 import '../../timer/presentation/reading_timer_screen.dart';
 
-/// Root scaffold with bottom navigation hosting the four main tabs.
+/// Root scaffold with bottom navigation hosting the five main tabs:
+/// Feed, Read, Journey, Ranks (Leaderboard), and Profile.
 class MainNavigationShell extends StatefulWidget {
   final int initialIndex;
 
@@ -23,11 +26,12 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   late int _currentIndex;
 
-  // All four main app screens: Feed, Read, Journey, Profile.
+  // All five main app screens: Feed, Read, Journey, Ranks, Profile.
   final List<Widget> _screens = const [
     DiscoverFeedScreen(),
     ReadingTimerScreen(),
     ReadingJourneyScreen(),
+    LeaderboardScreen(),
     ReaderProfileScreen(),
   ];
 
@@ -35,6 +39,23 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    ReadingSessionStore.instance.tabNavigationRequest
+        .addListener(_onExternalTabRequest);
+  }
+
+  @override
+  void dispose() {
+    ReadingSessionStore.instance.tabNavigationRequest
+        .removeListener(_onExternalTabRequest);
+    super.dispose();
+  }
+
+  void _onExternalTabRequest() {
+    final target = ReadingSessionStore.instance.tabNavigationRequest.value;
+    if (target != null && target >= 0 && target < _screens.length && mounted) {
+      setState(() => _currentIndex = target);
+      ReadingSessionStore.instance.tabNavigationRequest.value = null;
+    }
   }
 
   @override
@@ -80,6 +101,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               ),
               _buildNavItem(
                 index: 3,
+                icon: Icons.emoji_events_outlined,
+                activeIcon: Icons.emoji_events_rounded,
+                label: 'Ranks',
+              ),
+              _buildNavItem(
+                index: 4,
                 icon: Icons.person_outline_rounded,
                 activeIcon: Icons.person_rounded,
                 label: 'Profile',
@@ -103,7 +130,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       onTap: () => setState(() => _currentIndex = index),
       borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -111,7 +138,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
                 color: isSelected ? const Color(0xFFE2EBE5) : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),

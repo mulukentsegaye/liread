@@ -1,17 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readers_hub/app.dart';
+import 'package:readers_hub/features/leaderboard/data/reading_session_store.dart';
 
 void main() {
-  testWidgets('App renders Feed, Read timer, Journey, and Profile tabs', (WidgetTester tester) async {
+  testWidgets('App renders Feed, Read timer, Journey, Ranks leaderboard, and Profile tabs', (WidgetTester tester) async {
+    ReadingSessionStore.instance.reset();
     await tester.pumpWidget(const ReadersHubApp());
 
     // 1. Verify the Feed header renders
     expect(find.text('Between pages'), findsOneWidget);
 
-    // Verify bottom navigation tabs exist
+    // Verify all 5 bottom navigation tabs exist
     expect(find.text('Feed'), findsOneWidget);
     expect(find.text('Read'), findsOneWidget);
     expect(find.text('Journey'), findsOneWidget);
+    expect(find.text('Ranks'), findsOneWidget);
     expect(find.text('Profile'), findsOneWidget);
 
     // 2. Tap on the 'Read' tab
@@ -37,13 +40,34 @@ void main() {
     expect(find.text('7-day reading streak'), findsOneWidget);
     expect(find.text('Thoughtful reader'), findsOneWidget);
 
-    // 4. Tap on the 'Profile' tab
+    // 4. Tap on the 'Ranks' tab (Leaderboard)
+    await tester.tap(find.text('Ranks'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reading circle'), findsOneWidget);
+    expect(find.text('Every page counts. Inspired together.'), findsOneWidget);
+    expect(find.text('Daily rank'), findsOneWidget);
+    expect(find.text('Weekly rank'), findsOneWidget);
+    expect(find.text('Yearly rank'), findsOneWidget);
+    expect(find.text('YOUR STANDING'), findsOneWidget);
+    expect(find.text('All readers'), findsOneWidget);
+
+    // Switch between Weekly rank and Yearly rank
+    await tester.tap(find.text('Weekly rank'));
+    await tester.pumpAndSettle();
+    expect(find.text('This week'), findsWidgets);
+
+    await tester.tap(find.text('Yearly rank'));
+    await tester.pumpAndSettle();
+    expect(find.text('This year'), findsWidgets);
+
+    // 5. Tap on the 'Profile' tab
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
 
     expect(find.text('Your corner'), findsOneWidget);
     expect(find.text('The reader behind the pages.'), findsOneWidget);
-    expect(find.text('Emma Laurent'), findsOneWidget);
+    expect(find.text('Emma Laurent'), findsWidgets);
     expect(find.text('@emma.reads'), findsOneWidget);
     expect(find.text('Edit profile'), findsOneWidget);
     expect(find.text('On my shelf'), findsOneWidget);

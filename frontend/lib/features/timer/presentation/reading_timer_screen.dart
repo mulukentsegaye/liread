@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../leaderboard/data/reading_session_store.dart';
+import '../../leaderboard/domain/leaderboard_models.dart';
 import '../domain/book_model.dart';
 import 'widgets/book_selector_sheet.dart';
 import 'widgets/currently_reading_card.dart';
@@ -101,10 +103,25 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
 
   void _finishAndSave() {
     _ticker?.cancel();
-    setState(() => _isRunning = false);
+    final sessionSeconds = _elapsedSeconds;
+    final minutes = (sessionSeconds / 60).floor();
+    final seconds = sessionSeconds % 60;
 
-    final minutes = (_elapsedSeconds / 60).floor();
-    final seconds = _elapsedSeconds % 60;
+    // Save completed session to the shared store so Daily, Weekly, and Yearly ranks update
+    ReadingSessionStore.instance.recordSession(
+      bookTitle: _selectedBook.title,
+      durationSeconds: sessionSeconds > 0 ? sessionSeconds : 60,
+    );
+
+    setState(() {
+      _isRunning = false;
+      _elapsedSeconds = 0;
+    });
+
+    final store = ReadingSessionStore.instance;
+    final dailyRank = store.getCurrentUserRank(LeaderboardPeriod.daily);
+    final weeklyRank = store.getCurrentUserRank(LeaderboardPeriod.weekly);
+    final yearlyRank = store.getCurrentUserRank(LeaderboardPeriod.yearly);
 
     showDialog<void>(
       context: context,
@@ -112,7 +129,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         backgroundColor: AppColors.surface,
         title: Text(
-          'Session Complete',
+          'Session Saved',
           style: GoogleFonts.plusJakartaSans(
             fontWeight: FontWeight.w700,
             fontSize: 20,
@@ -124,7 +141,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Great reading session! You spent:',
+              'Great reading session! You logged:',
               style: GoogleFonts.plusJakartaSans(fontSize: 14, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
@@ -138,21 +155,42 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                 children: [
                   const Icon(Icons.timer_outlined, color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
-                  Text(
-                    '$minutes min $seconds sec · ${_selectedBook.title}',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                  Expanded(
+                    child: Text(
+                      '$minutes min $seconds sec · ${_selectedBook.title}',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              'Your daily streak has been updated! Keep up the momentum.',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, color: AppColors.textSecondary),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEDF2EE),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.emoji_events_outlined, color: AppColors.primary, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Daily #$dailyRank · Weekly #$weeklyRank · Yearly #$yearlyRank',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -160,17 +198,12 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              _ticker?.cancel();
-              setState(() {
-                _elapsedSeconds = 0;
-                _isRunning = false;
-              });
             },
             child: Text(
-              'Reset & Finish',
+              'Close',
               style: GoogleFonts.plusJakartaSans(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -182,12 +215,9 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
-              setState(() {
-                _isRunning = true;
-              });
-              _startTicker();
+              ReadingSessionStore.instance.navigateToTab(3);
             },
-            child: const Text('Keep Reading'),
+            child: const Text('View Leaderboard'),
           ),
         ],
       ),

@@ -6,12 +6,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../leaderboard/data/reading_session_store.dart';
 import '../../leaderboard/domain/leaderboard_models.dart';
 import '../domain/book_model.dart';
+import '../domain/timer_theme_model.dart';
 import 'widgets/book_selector_sheet.dart';
 import 'widgets/currently_reading_card.dart';
+import 'widgets/radial_glow_counter_card.dart';
 import 'widgets/reading_timer_painter.dart';
 import 'widgets/timer_settings_sheet.dart';
+import 'widgets/timer_theme_sheet.dart';
 
-/// Full interactive Reading Timer screen matching "A moment to read".
+/// Full interactive Reading Timer screen with theme switching, arched dial gauge,
+/// glowing ambient counter, and session sync.
 class ReadingTimerScreen extends StatefulWidget {
   const ReadingTimerScreen({super.key});
 
@@ -62,6 +66,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
 
   late ReadingBook _selectedBook;
   int _goalMinutes = 30;
+  CounterThemeId _currentThemeId = CounterThemeId.sageOrganic;
 
   int _elapsedSeconds = 0;
   bool _isRunning = false;
@@ -241,6 +246,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
   @override
   Widget build(BuildContext context) {
     final currentMinutesToday = (_elapsedSeconds / 60).floor();
+    final activeTheme = CounterThemeConfig.byId(_currentThemeId);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -270,94 +276,70 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                   }
                 },
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 18),
 
-              // ── Circular Reading Timer ─────────────────────
+              // ── Quick Theme Selector Pill ──────────────────
               Center(
-                child: SizedBox(
-                  width: 260,
-                  height: 260,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Circular ring painter
-                      CustomPaint(
-                        size: const Size(260, 260),
-                        painter: ReadingTimerPainter(
-                          progress: _progress,
-                          trackColor: const Color(0xFFE2E9E4),
-                          progressColor: const Color(0xFF557A68),
-                          knobColor: const Color(0xFF456656),
-                          strokeWidth: 7.0,
+                child: InkWell(
+                  onTap: () {
+                    TimerThemeSheet.show(
+                      context,
+                      currentThemeId: _currentThemeId,
+                      onThemeSelected: (id) => setState(() => _currentThemeId = id),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AppColors.divider),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          activeTheme.themeIcon,
+                          size: 15,
+                          color: activeTheme.accentColor,
                         ),
-                      ),
-
-                      // Center labels
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Status badge
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: _isRunning
-                                      ? const Color(0xFF557A68)
-                                      : AppColors.textTertiary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                _isRunning
-                                    ? 'IN YOUR FLOW'
-                                    : (_elapsedSeconds > 0
-                                        ? 'SESSION PAUSED'
-                                        : 'READY TO READ'),
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 1.2,
-                                  color: _isRunning
-                                      ? const Color(0xFF557A68)
-                                      : AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
+                        const SizedBox(width: 6),
+                        Text(
+                          'Theme: ${activeTheme.name}',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
-                          const SizedBox(height: 8),
-
-                          // Large Timer Digits
-                          Text(
-                            _formatTime(_elapsedSeconds),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 50,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                              letterSpacing: -1.0,
-                              height: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-
-                          // Goal subtitle
-                          Text(
-                            'of your $_goalMinutes min goal',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.swap_horiz_rounded,
+                          size: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // ── Counter Display (Classic or Arched Dial) ────
+              Center(
+                child: _currentThemeId == CounterThemeId.sageOrganic
+                    ? _buildClassicCircularCounter()
+                    : RadialGlowCounterCard(
+                        theme: activeTheme,
+                        progress: _progress,
+                        elapsedSeconds: _elapsedSeconds,
+                        goalMinutes: _goalMinutes,
+                        bookTitle: _selectedBook.title,
+                        isRunning: _isRunning,
+                      ),
+              ),
+              const SizedBox(height: 28),
 
               // ── Primary Action Pill: Pause / Resume Session ─
               SizedBox(
@@ -381,7 +363,11 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF557766),
+                    backgroundColor: _currentThemeId == CounterThemeId.sageOrganic
+                        ? const Color(0xFF557766)
+                        : (activeTheme.isDark
+                            ? activeTheme.accentColor
+                            : AppColors.primary),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -461,6 +447,91 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
     );
   }
 
+  Widget _buildClassicCircularCounter() {
+    return SizedBox(
+      width: 260,
+      height: 260,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Circular ring painter
+          CustomPaint(
+            size: const Size(260, 260),
+            painter: ReadingTimerPainter(
+              progress: _progress,
+              trackColor: const Color(0xFFE2E9E4),
+              progressColor: const Color(0xFF557A68),
+              knobColor: const Color(0xFF456656),
+              strokeWidth: 7.0,
+            ),
+          ),
+
+          // Center labels
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Status badge
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: _isRunning
+                          ? const Color(0xFF557A68)
+                          : AppColors.textTertiary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _isRunning
+                        ? 'IN YOUR FLOW'
+                        : (_elapsedSeconds > 0
+                            ? 'SESSION PAUSED'
+                            : 'READY TO READ'),
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      color: _isRunning
+                          ? const Color(0xFF557A68)
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Large Timer Digits
+              Text(
+                _formatTime(_elapsedSeconds),
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 50,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -1.0,
+                  height: 1.1,
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Goal subtitle
+              Text(
+                'of your $_goalMinutes min goal',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Header Widget ──────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
     return Row(
@@ -482,7 +553,37 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
             ],
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
+
+        // Theme Palette Icon button
+        Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.18),
+              width: 1.5,
+            ),
+          ),
+          child: IconButton(
+            tooltip: 'Counter Theme',
+            onPressed: () {
+              TimerThemeSheet.show(
+                context,
+                currentThemeId: _currentThemeId,
+                onThemeSelected: (id) => setState(() => _currentThemeId = id),
+              );
+            },
+            padding: EdgeInsets.zero,
+            icon: const Icon(
+              Icons.palette_outlined,
+              color: AppColors.textPrimary,
+              size: 20,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
 
         // Settings / Preferences Icon button
         Container(
@@ -496,12 +597,17 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
             ),
           ),
           child: IconButton(
+            tooltip: 'Settings',
             onPressed: () {
               TimerSettingsSheet.show(
                 context,
                 currentGoalMinutes: _goalMinutes,
                 onGoalChanged: (goal) {
                   setState(() => _goalMinutes = goal);
+                },
+                currentThemeId: _currentThemeId,
+                onThemeChanged: (id) {
+                  setState(() => _currentThemeId = id);
                 },
               );
             },

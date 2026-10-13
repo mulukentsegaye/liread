@@ -61,16 +61,14 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
   late ReadingBook _selectedBook;
   int _goalMinutes = 30;
 
-  // Initialize at 18:42 to mirror the exact state from the mockup
-  int _elapsedSeconds = 18 * 60 + 42;
-  bool _isRunning = true;
+  int _elapsedSeconds = 0;
+  bool _isRunning = false;
   Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
     _selectedBook = _library.first;
-    _startTicker();
   }
 
   @override
@@ -94,6 +92,11 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
     setState(() {
       _isRunning = !_isRunning;
     });
+    if (_isRunning) {
+      _startTicker();
+    } else {
+      _ticker?.cancel();
+    }
   }
 
   void _finishAndSave() {
@@ -157,11 +160,11 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
+              _ticker?.cancel();
               setState(() {
                 _elapsedSeconds = 0;
                 _isRunning = false;
               });
-              _startTicker();
             },
             child: Text(
               'Reset & Finish',
@@ -179,6 +182,9 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
+              setState(() {
+                _isRunning = true;
+              });
               _startTicker();
             },
             child: const Text('Keep Reading'),

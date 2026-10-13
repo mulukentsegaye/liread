@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_controller.dart';
 import '../../domain/timer_theme_model.dart';
 
-/// Modal bottom sheet for configuring reading session settings (goal, counter theme, ambient, etc.).
+/// Modal bottom sheet for configuring reading session settings (goal, app mode, counter theme, etc.).
 class TimerSettingsSheet extends StatefulWidget {
   final int currentGoalMinutes;
   final ValueChanged<int> onGoalChanged;
@@ -60,10 +61,20 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isAppDark = AppThemeController.instance.isDarkMode;
+    final themesToShow = CounterThemeConfig.getThemesForMode(isAppDark);
+
+    final sheetBg = isAppDark ? AppColors.darkSurface : AppColors.surface;
+    final textPrimary = isAppDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+    final textSecondary = isAppDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+    final dividerColor = isAppDark ? AppColors.darkDivider : AppColors.divider;
+    final cardBg = isAppDark ? AppColors.darkBackground : AppColors.background;
+    final accentPrimary = isAppDark ? AppColors.darkPrimary : AppColors.primary;
+
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: sheetBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
       child: Column(
@@ -76,7 +87,7 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.divider,
+                color: dividerColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -88,19 +99,55 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: 16),
 
-          // Daily Goal section
+          // ── App Mode Toggle ──────────────────────────────
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeThumbColor: accentPrimary,
+            secondary: Icon(
+              isAppDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+              color: accentPrimary,
+              size: 22,
+            ),
+            title: Text(
+              'App Dark Mode',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
+            ),
+            subtitle: Text(
+              isAppDark
+                  ? 'Dark UI with glowing night counter themes'
+                  : 'Clean light UI with airy counter themes',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: textSecondary,
+              ),
+            ),
+            value: isAppDark,
+            onChanged: (val) {
+              AppThemeController.instance.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
+              final defaultTheme = CounterThemeConfig.defaultForMode(val);
+              setState(() => _selectedThemeId = defaultTheme.id);
+              widget.onThemeChanged?.call(defaultTheme.id);
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // ── Daily Goal section ───────────────────────────
           Text(
             'SESSION GOAL',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
-              color: AppColors.textSecondary,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 10),
@@ -119,10 +166,10 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : AppColors.background,
+                        color: isSelected ? accentPrimary : cardBg,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isSelected ? AppColors.primary : AppColors.divider,
+                          color: isSelected ? accentPrimary : dividerColor,
                         ),
                       ),
                       alignment: Alignment.center,
@@ -131,7 +178,7 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 13,
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                          color: isSelected ? Colors.white : AppColors.textPrimary,
+                          color: isSelected ? Colors.white : textPrimary,
                         ),
                       ),
                     ),
@@ -142,14 +189,14 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
           ),
           const SizedBox(height: 20),
 
-          // Counter Theme section
+          // ── Counter Theme section ────────────────────────
           Text(
-            'COUNTER THEME',
+            isAppDark ? 'DARK COUNTER THEMES' : 'LIGHT COUNTER THEMES',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
-              color: AppColors.textSecondary,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 10),
@@ -157,10 +204,10 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
             height: 68,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: CounterThemeConfig.allThemes.length,
+              itemCount: themesToShow.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
-                final theme = CounterThemeConfig.allThemes[index];
+                final theme = themesToShow[index];
                 final isSelected = theme.id == _selectedThemeId;
 
                 return InkWell(
@@ -172,10 +219,12 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFEDF2EE) : AppColors.background,
+                      color: isSelected
+                          ? (isAppDark ? const Color(0xFF1F2B24) : const Color(0xFFEDF2EE))
+                          : cardBg,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : AppColors.divider,
+                        color: isSelected ? accentPrimary : dividerColor,
                         width: isSelected ? 1.5 : 1.0,
                       ),
                     ),
@@ -209,14 +258,14 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 12.5,
                                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: textPrimary,
                               ),
                             ),
                             Text(
                               theme.isDark ? 'Dark glow' : 'Light clean',
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 10.5,
-                                color: AppColors.textSecondary,
+                                color: textSecondary,
                               ),
                             ),
                           ],
@@ -228,33 +277,47 @@ class _TimerSettingsSheetState extends State<TimerSettingsSheet> {
               },
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
           // Toggles
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            activeThumbColor: AppColors.primary,
+            activeThumbColor: accentPrimary,
             title: Text(
               'Chime when goal reached',
-              style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
             ),
             subtitle: Text(
               'Gentle notification upon completion',
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: textSecondary,
+              ),
             ),
             value: _soundEnabled,
             onChanged: (v) => setState(() => _soundEnabled = v),
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            activeThumbColor: AppColors.primary,
+            activeThumbColor: accentPrimary,
             title: Text(
               'Keep screen awake',
-              style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w600),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textPrimary,
+              ),
             ),
             subtitle: Text(
               'Prevent device from sleeping during reading',
-              style: GoogleFonts.plusJakartaSans(fontSize: 12, color: AppColors.textSecondary),
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                color: textSecondary,
+              ),
             ),
             value: _keepScreenOn,
             onChanged: (v) => setState(() => _keepScreenOn = v),

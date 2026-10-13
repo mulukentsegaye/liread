@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readers_hub/app.dart';
+import 'package:readers_hub/core/theme/theme_controller.dart';
 import 'package:readers_hub/features/leaderboard/data/reading_session_store.dart';
 
 void main() {
   testWidgets('App renders Feed, Read timer with theme switching, Journey, Ranks, and Profile tabs', (WidgetTester tester) async {
     ReadingSessionStore.instance.reset();
+    AppThemeController.instance.resetForTesting();
     await tester.pumpWidget(const ReadersHubApp());
 
     // 1. Verify the Feed header renders
@@ -28,20 +30,38 @@ void main() {
     expect(find.text('Finish & save'), findsOneWidget);
     expect(find.text('A little every day'), findsOneWidget);
 
-    // Verify Counter Theme pill and test switching themes
+    // Verify Counter Theme pill and test switching light themes
     expect(find.text('Theme: Sage Classic'), findsOneWidget);
 
-    // Tap theme pill to open theme sheet
+    // Tap theme pill to open theme sheet (defaults to Light Themes tab in light mode)
     await tester.tap(find.text('Theme: Sage Classic'));
     await tester.pumpAndSettle();
 
     expect(find.text('Counter Theme'), findsOneWidget);
-    expect(find.text('Obsidian Ember'), findsOneWidget);
     expect(find.text('Ceramic Frost'), findsOneWidget);
-    expect(find.text('Midnight Aurora'), findsOneWidget);
     expect(find.text('Warm Papyrus'), findsOneWidget);
+    expect(find.text('Linen Minimal'), findsOneWidget);
 
-    // Select Obsidian Ember theme
+    // Select Ceramic Frost theme (light mode theme)
+    await tester.tap(find.text('Ceramic Frost'));
+    await tester.pumpAndSettle();
+
+    // Verify theme changed to Ceramic Frost
+    expect(find.text('Theme: Ceramic Frost'), findsOneWidget);
+
+    // Now test switching to Dark Themes tab
+    await tester.tap(find.text('Theme: Ceramic Frost'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Dark Themes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Obsidian Ember'), findsOneWidget);
+    expect(find.text('Midnight Aurora'), findsOneWidget);
+    expect(find.text('Obsidian Sage'), findsOneWidget);
+    expect(find.text('Charcoal Minimal'), findsOneWidget);
+
+    // Select Obsidian Ember dark theme
     await tester.tap(find.text('Obsidian Ember'));
     await tester.pumpAndSettle();
 

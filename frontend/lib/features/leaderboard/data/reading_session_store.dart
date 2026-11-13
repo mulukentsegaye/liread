@@ -14,6 +14,10 @@ class ReadingSessionStore extends ChangeNotifier {
   /// Allows screens or dialogs (e.g. Timer completion dialog) to switch the active bottom nav tab.
   final ValueNotifier<int?> tabNavigationRequest = ValueNotifier<int?>(null);
 
+  /// Stores a book chosen from Explore or elsewhere to be read in the Timer.
+  final ValueNotifier<Map<String, String>?> selectedBookForTimer =
+      ValueNotifier<Map<String, String>?>(null);
+
   late List<LeaderboardEntry> _entries;
   late List<SavedReadingSession> _savedSessions;
 
@@ -121,6 +125,7 @@ class ReadingSessionStore extends ChangeNotifier {
   /// Resets the store to initial mock state (useful for deterministic widget tests).
   void reset() {
     _initDefaultData();
+    selectedBookForTimer.value = null;
     notifyListeners();
   }
 
@@ -175,5 +180,18 @@ class ReadingSessionStore extends ChangeNotifier {
   /// Requests MainNavigationShell to switch to [tabIndex].
   void navigateToTab(int tabIndex) {
     tabNavigationRequest.value = tabIndex;
+  }
+
+  /// Selects a book to read in the Reading Timer and navigates to the Read tab.
+  void selectBookForTimer(String title, String author, {String? coverUrl}) {
+    final map = <String, String>{
+      'title': title,
+      'author': author,
+    };
+    if (coverUrl != null) {
+      map['coverUrl'] = coverUrl;
+    }
+    selectedBookForTimer.value = map;
+    navigateToTab(2); // Index 2 is the Read tab
   }
 }

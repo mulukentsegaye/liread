@@ -40,7 +40,28 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    ReadingSessionStore.instance.selectedBookForTimer
+        .addListener(_onExternalBookSelected);
+  }
+
+  void _onExternalBookSelected() {
+    final bookData =
+        ReadingSessionStore.instance.selectedBookForTimer.value;
+    if (bookData != null && mounted) {
+      setState(() {
+        _currentBook = bookData['title'] ?? _currentBook;
+        _currentAuthor = bookData['author'] ?? _currentAuthor;
+      });
+      ReadingSessionStore.instance.selectedBookForTimer.value = null;
+    }
+  }
+
+  @override
   void dispose() {
+    ReadingSessionStore.instance.selectedBookForTimer
+        .removeListener(_onExternalBookSelected);
     _timer?.cancel();
     super.dispose();
   }

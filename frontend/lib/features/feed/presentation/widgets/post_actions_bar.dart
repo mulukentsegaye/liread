@@ -7,6 +7,9 @@ class PostActionsBar extends StatelessWidget {
   final int comments;
   final bool isLiked;
   final bool isBookmarked;
+  final VoidCallback? onLike;
+  final VoidCallback? onComment;
+  final VoidCallback? onBookmark;
 
   const PostActionsBar({
     super.key,
@@ -14,6 +17,9 @@ class PostActionsBar extends StatelessWidget {
     required this.comments,
     this.isLiked = false,
     this.isBookmarked = false,
+    this.onLike,
+    this.onComment,
+    this.onBookmark,
   });
 
   @override
@@ -33,7 +39,7 @@ class PostActionsBar extends StatelessWidget {
             iconColor: isLiked ? Colors.redAccent : AppColors.textSecondary,
             label: likes.toString(),
             labelStyle: textStyle,
-            onTap: () {},
+            onTap: onLike ?? () {},
           ),
           const SizedBox(width: 16),
 
@@ -43,7 +49,7 @@ class PostActionsBar extends StatelessWidget {
             iconColor: AppColors.textSecondary,
             label: comments.toString(),
             labelStyle: textStyle,
-            onTap: () {},
+            onTap: onComment ?? () {},
           ),
 
           const Spacer(),
@@ -53,7 +59,7 @@ class PostActionsBar extends StatelessWidget {
             width: 32,
             height: 32,
             child: IconButton(
-              onPressed: () {},
+              onPressed: onBookmark ?? () {},
               padding: EdgeInsets.zero,
               icon: Icon(
                 isBookmarked

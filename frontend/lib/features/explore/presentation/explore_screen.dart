@@ -601,14 +601,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              InkWell(
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () {
                   setState(() {
                     _viewingCategoryConfig = null;
                     _selectedCategoryName = 'All';
                   });
                 },
-                borderRadius: BorderRadius.circular(12),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Row(
@@ -904,9 +904,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   ),
                 ],
               ),
-              InkWell(
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => _openCategoryDetail(category),
-                borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   child: Row(
@@ -1063,9 +1063,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                                     color: textSecondary,
                                   ),
                                 ),
-                                InkWell(
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
                                   onTap: () => _startTimerWithBook(book),
-                                  borderRadius: BorderRadius.circular(12),
                                   child: Padding(
                                     padding: const EdgeInsets.all(3),
                                     child: Icon(
@@ -1155,9 +1155,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     color: textSecondary,
                   ),
                 ),
-                InkWell(
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () => _startTimerWithBook(book),
-                  borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(

@@ -92,6 +92,13 @@ class AppTheme {
         ),
       ),
 
+      // ── Tab Bar ──────────────────────────────────────────
+      tabBarTheme: TabBarThemeData(
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+        splashFactory: NoSplash.splashFactory,
+        dividerColor: Colors.transparent,
+      ),
+
       // ── Divider ──────────────────────────────────────────
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
@@ -99,7 +106,9 @@ class AppTheme {
         space: 0,
       ),
 
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
     );
   }
 
@@ -189,6 +198,13 @@ class AppTheme {
         ),
       ),
 
+      // ── Tab Bar ──────────────────────────────────────────
+      tabBarTheme: TabBarThemeData(
+        overlayColor: WidgetStateProperty.all(Colors.transparent),
+        splashFactory: NoSplash.splashFactory,
+        dividerColor: Colors.transparent,
+      ),
+
       // ── Divider ──────────────────────────────────────────
       dividerTheme: const DividerThemeData(
         color: AppColors.darkDivider,
@@ -196,7 +212,9 @@ class AppTheme {
         space: 0,
       ),
 
-      splashFactory: InkSparkle.splashFactory,
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
     );
   }
 }

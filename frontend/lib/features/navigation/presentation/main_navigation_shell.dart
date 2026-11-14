@@ -3,14 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../explore/presentation/explore_screen.dart';
 import '../../feed/presentation/discover_feed_screen.dart';
 import '../../leaderboard/data/reading_session_store.dart';
+import '../../leaderboard/presentation/leaderboard_screen.dart';
 import '../../profile/presentation/reader_profile_screen.dart';
 import '../../timer/presentation/reading_timer_screen.dart';
 
-/// Root scaffold with bottom navigation hosting the 4 essential tabs:
-/// Feed (Community & Circle), Explore (Search), Read (Timer), and Profile (Shelf & Journey).
+/// Root scaffold with bottom navigation hosting the six main tabs:
+/// Feed, Explore (Open Library), Read (Timer), Journey, Ranks (Leaderboard), and Profile.
 class MainNavigationShell extends StatefulWidget {
   final int initialIndex;
 
@@ -26,15 +28,13 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   late int _currentIndex;
 
-  // The 4 essential screens:
-  // 0. Feed (Community Feed & Reading Circle Leaderboard)
-  // 1. Explore (Open Library Catalog Search & Genres)
-  // 2. Read (Distraction-free Reading Timer & Sanctuary)
-  // 3. Profile (Reader Identity, Bookshelf, Journey Analytics, Saved Notes)
+  // All six main app screens: Feed, Explore, Read, Journey, Ranks, Profile.
   final List<Widget> _screens = const [
     DiscoverFeedScreen(),
     ExploreScreen(),
     ReadingTimerScreen(),
+    ReadingJourneyScreen(),
+    LeaderboardScreen(),
     ReaderProfileScreen(),
   ];
 
@@ -125,6 +125,24 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   ),
                   _buildNavItem(
                     index: 3,
+                    icon: Icons.bar_chart_outlined,
+                    activeIcon: Icons.bar_chart_rounded,
+                    label: 'Journey',
+                    activePillColor: activePillColor,
+                    activeIconColor: activeIconColor,
+                    isDark: isDark,
+                  ),
+                  _buildNavItem(
+                    index: 4,
+                    icon: Icons.emoji_events_outlined,
+                    activeIcon: Icons.emoji_events_rounded,
+                    label: 'Ranks',
+                    activePillColor: activePillColor,
+                    activeIconColor: activeIconColor,
+                    isDark: isDark,
+                  ),
+                  _buildNavItem(
+                    index: 5,
                     icon: Icons.person_outline_rounded,
                     activeIcon: Icons.person_rounded,
                     label: 'Profile',
@@ -154,9 +172,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     final inactiveTextColor =
         isDark ? AppColors.darkTextSecondary : AppColors.tabInactive;
 
-    return InkWell(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => setState(() => _currentIndex = index),
-      borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
         child: Column(

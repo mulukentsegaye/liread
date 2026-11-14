@@ -197,9 +197,9 @@ class ReaderLevelCard extends StatelessWidget {
         ? (currentPoints / targetPoints).clamp(0.0, 1.0)
         : 0.0;
 
-    return InkWell(
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => _showTiersModal(context),
-      borderRadius: BorderRadius.circular(18),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),

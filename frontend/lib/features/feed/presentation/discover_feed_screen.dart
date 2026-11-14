@@ -3,8 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../leaderboard/presentation/leaderboard_screen.dart';
-import '../../timer/presentation/widgets/live_co_readers_widget.dart';
 import '../domain/comment_model.dart';
 import '../domain/post_model.dart';
 import 'widgets/book_recommendation_card.dart';
@@ -32,9 +30,6 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
     _fetchLivePosts();
   }
 
@@ -373,140 +368,116 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // ── Top Header ──────────────────────────────────────
-            _buildHeader(context),
+    return SafeArea(
+      bottom: false,
+      child: RefreshIndicator(
+        onRefresh: _fetchLivePosts,
+        color: AppColors.primary,
+        child: CustomScrollView(
+          slivers: [
+            // ── Header ───────────────────────────────────────
+            SliverToBoxAdapter(child: _buildHeader(context)),
 
-            // ── Tab bar ─────────────────────────────────────────
-            _buildTabBar(context),
+            // ── Tab bar ──────────────────────────────────────
+            SliverToBoxAdapter(child: _buildTabBar(context)),
 
-            // ── Divider ─────────────────────────────────────────
-            const Divider(height: 1, color: AppColors.divider),
-
-            // ── Tab Views ───────────────────────────────────────
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildFeedTab(context),
-                  const LeaderboardScreen(showHeader: false),
-                ],
-              ),
+            // ── Divider ──────────────────────────────────────
+            const SliverToBoxAdapter(
+              child: Divider(height: 1, color: AppColors.divider),
             ),
+
+            // ── Feed list / Empty state ──────────────────────
+            if (_isLoading)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ),
+              )
+            else if (_posts.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 60),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.format_quote_rounded,
+                          size: 36,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Your feed is quiet',
+                        style: GoogleFonts.newsreader(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Be the first reader to share a resonant passage or recommend a book to your circle.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.5,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: _showCreatePostModal,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Share a passage'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final post = _posts[index];
+                    return _FeedPostItem(
+                      post: post,
+                      onLike: () => _toggleLike(index),
+                      onBookmark: () => _toggleBookmark(index),
+                      onComment: () => _showCommentsSheet(post, index),
+                    );
+                  },
+                  childCount: _posts.length,
+                ),
+              ),
+
+            // Bottom padding for nav bar
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildFeedTab(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _fetchLivePosts,
-      color: AppColors.primary,
-      child: CustomScrollView(
-        slivers: [
-          // ── Live Co-Reading Readers Banner ─────────────────
-          const SliverToBoxAdapter(
-            child: LiveCoReadingFeedBanner(),
-          ),
-
-          // ── Feed list / Empty state ────────────────────────
-          if (_isLoading)
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.primary,
-                    strokeWidth: 2.5,
-                  ),
-                ),
-              ),
-            )
-          else if (_posts.isEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.format_quote_rounded,
-                        size: 36,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Your feed is quiet',
-                      style: GoogleFonts.newsreader(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Be the first reader to share a resonant passage or recommend a book to your circle.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        height: 1.5,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _showCreatePostModal,
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Share a passage'),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final post = _posts[index];
-                  return _FeedPostItem(
-                    post: post,
-                    onLike: () => _toggleLike(index),
-                    onBookmark: () => _toggleBookmark(index),
-                    onComment: () => _showCommentsSheet(post, index),
-                  );
-                },
-                childCount: _posts.length,
-              ),
-            ),
-
-          // Bottom padding for nav bar
-          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-        ],
-      ),
-    );
-  }
-
   // ── Header ─────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
-    final isCircle = _tabController.index == 1;
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
       child: Row(
@@ -517,14 +488,12 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCircle ? 'Reading circle' : 'Between pages',
+                  'Between pages',
                   style: Theme.of(context).textTheme.headlineLarge,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isCircle
-                      ? 'Every page counts. Inspired together.'
-                      : 'A little inspiration from your circle.',
+                  'A little inspiration from your circle.',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
               ],
@@ -532,28 +501,27 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
           ),
           const SizedBox(width: 16),
 
-          if (!isCircle)
-            // Create-post FAB
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.18),
-                  width: 1.5,
-                ),
-              ),
-              child: IconButton(
-                onPressed: _showCreatePostModal,
-                padding: EdgeInsets.zero,
-                icon: const Icon(
-                  Icons.add,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
+          // Create-post FAB
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.18),
+                width: 1.5,
               ),
             ),
+            child: IconButton(
+              onPressed: _showCreatePostModal,
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.add,
+                color: AppColors.primary,
+                size: 22,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -577,6 +545,8 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               indicatorWeight: 2.5,
               indicatorSize: TabBarIndicatorSize.label,
               dividerColor: Colors.transparent,
+              splashFactory: NoSplash.splashFactory,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
               labelStyle: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -588,8 +558,8 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               labelPadding: const EdgeInsets.only(right: 24),
               padding: EdgeInsets.zero,
               tabs: const [
-                Tab(text: 'Community Feed'),
-                Tab(text: 'Reading Circle'),
+                Tab(text: 'For you'),
+                Tab(text: 'Following'),
               ],
             ),
           ),

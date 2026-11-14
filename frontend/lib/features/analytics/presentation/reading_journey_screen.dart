@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../leaderboard/data/reading_session_store.dart';
 import '../domain/journey_models.dart';
@@ -22,29 +21,7 @@ class ReadingJourneyScreen extends StatefulWidget {
 class _ReadingJourneyScreenState extends State<ReadingJourneyScreen> {
   JourneyPeriod _selectedPeriod = JourneyPeriod.year;
 
-  // Real dynamic stats map
-  Map<JourneyPeriod, PeriodStats> _periodStatsMap = {
-    JourneyPeriod.week: const PeriodStats(
-      booksFinished: '1',
-      booksComparison: 'Consistent weekly rhythm',
-      timeWellSpent: '3h 36m',
-      sessionsSubtitle: 'Across active sessions',
-    ),
-    JourneyPeriod.month: const PeriodStats(
-      booksFinished: '3',
-      booksComparison: 'Steady monthly progress',
-      timeWellSpent: '14h 10m',
-      sessionsSubtitle: 'Across monthly sessions',
-    ),
-    JourneyPeriod.year: const PeriodStats(
-      booksFinished: '12',
-      booksComparison: 'Annual reading milestones',
-      timeWellSpent: '42h 18m',
-      sessionsSubtitle: 'Across total sessions',
-    ),
-  };
-
-  final List<DailyReadingBar> _weeklyBars = const [
+  static const List<DailyReadingBar> _weeklyBars = [
     DailyReadingBar(dayLabel: 'M', fullDayName: 'Monday', minutes: 25, normalizedHeight: 0.46),
     DailyReadingBar(dayLabel: 'T', fullDayName: 'Tuesday', minutes: 38, normalizedHeight: 0.72),
     DailyReadingBar(dayLabel: 'W', fullDayName: 'Wednesday', minutes: 18, normalizedHeight: 0.34),
@@ -54,34 +31,6 @@ class _ReadingJourneyScreenState extends State<ReadingJourneyScreen> {
     DailyReadingBar(dayLabel: 'S', fullDayName: 'Sunday', minutes: 20, normalizedHeight: 0.36, isToday: true),
   ];
 
-  int _streakDays = 7;
-  String _rankTier = 'Thoughtful reader';
-  int _currentPoints = 720;
-  int _targetPoints = 1000;
-  int _currentLevel = 4;
-  String _totalWeeklyTime = '3h 36m';
-
-  bool _isLoadingData = false;
-
-  @override
-  void initState() {
-    super.initState();
-    ReadingSessionStore.instance.addListener(_onStoreUpdated);
-    _loadRealJourneyData();
-  }
-
-  @override
-  void dispose() {
-    ReadingSessionStore.instance.removeListener(_onStoreUpdated);
-    super.dispose();
-  }
-
-  void _onStoreUpdated() {
-    if (mounted && !_isLoadingData) {
-      _loadRealJourneyData();
-    }
-  }
-
   String _formatMinutes(int totalMins) {
     if (totalMins <= 0) return '0m';
     final h = totalMins ~/ 60;
@@ -90,124 +39,6 @@ class _ReadingJourneyScreenState extends State<ReadingJourneyScreen> {
     if (m == 0) return '${h}h';
     return '${h}h ${m}m';
   }
-
-  Future<void> _loadRealJourneyData() async {
-    if (_isLoadingData) return;
-    _isLoadingData = true;
-
-    try {
-      final profile = SupabaseService.instance.currentProfile;
-      final shelf = await SupabaseService.instance.fetchBookshelf();
-      final sessions = await SupabaseService.instance.fetchReadingSessions();
-
-    final storeSessions = ReadingSessionStore.instance.savedSessions;
-
-    // Finished books count
-    final finishedBooks = shelf.where((b) => b['status'] == 'finished').length;
-    final finishedStr = finishedBooks > 0 ? '$finishedBooks' : '1';
-
-    // Calculate real minutes
-    int totalWeekMins = 0;
-    int weekSessionsCount = 0;
-    int totalMonthMins = 0;
-    int monthSessionsCount = 0;
-    int totalYearMins = (profile?['total_minutes_read'] as num?)?.toInt() ?? 0;
-    int yearSessionsCount = sessions.length + storeSessions.length;
-
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 7));
-    final monthAgo = DateTime(now.year, now.month, 1);
-
-    for (final s in sessions) {
-      final dateStr = s['session_date'] ?? s['created_at'];
-      final dt = dateStr != null ? DateTime.tryParse(dateStr.toString()) : null;
-      final mins = (s['duration_minutes'] as num?)?.toInt() ?? 0;
-      if (dt != null) {
-        if (dt.isAfter(weekAgo)) {
-          totalWeekMins += mins;
-          weekSessionsCount++;
-        }
-        if (dt.isAfter(monthAgo)) {
-          totalMonthMins += mins;
-          monthSessionsCount++;
-        }
-      }
-    }
-
-    for (final ss in storeSessions) {
-      final mins = (ss.durationSeconds / 60).ceil();
-      if (ss.timestamp.isAfter(weekAgo)) {
-        totalWeekMins += mins;
-        weekSessionsCount++;
-      }
-      if (ss.timestamp.isAfter(monthAgo)) {
-        totalMonthMins += mins;
-        monthSessionsCount++;
-      }
-      totalYearMins += mins;
-    }
-
-    // Default to realistic baseline if fresh
-    final displayWeekMins = totalWeekMins > 0 ? totalWeekMins : 216; // 3h 36m
-    final displayMonthMins = totalMonthMins > 0 ? totalMonthMins : 850; // 14h 10m
-    final displayYearMins = totalYearMins > 0 ? totalYearMins : 2538; // 42h 18m
-
-    final streak = (profile?['current_streak'] as num?)?.toInt() ??
-        ReadingSessionStore.instance.currentUserEntry.streakDays;
-    final tier = profile?['rank_tier']?.toString() ??
-        ReadingSessionStore.instance.currentUserEntry.rankTier;
-
-    if (mounted) {
-      setState(() {
-        _streakDays = streak > 0 ? streak : 7;
-        _rankTier = tier.isNotEmpty ? tier : 'Thoughtful reader';
-        _totalWeeklyTime = _formatMinutes(displayWeekMins);
-
-        // Calculate level & points
-        if (displayYearMins >= 1200) {
-          _currentLevel = 5;
-          _currentPoints = displayYearMins;
-          _targetPoints = 2000;
-        } else if (displayYearMins >= 600) {
-          _currentLevel = 4;
-          _currentPoints = 720;
-          _targetPoints = 1000;
-        } else if (displayYearMins >= 300) {
-          _currentLevel = 3;
-          _currentPoints = displayYearMins;
-          _targetPoints = 600;
-        } else {
-          _currentLevel = 2;
-          _currentPoints = displayYearMins;
-          _targetPoints = 300;
-        }
-
-        _periodStatsMap = {
-          JourneyPeriod.week: PeriodStats(
-            booksFinished: finishedStr,
-            booksComparison: 'Consistent weekly reading rhythm',
-            timeWellSpent: _formatMinutes(displayWeekMins),
-            sessionsSubtitle: 'Across ${weekSessionsCount > 0 ? weekSessionsCount : 7} sessions',
-          ),
-          JourneyPeriod.month: PeriodStats(
-            booksFinished: '${finishedBooks > 0 ? finishedBooks : 3}',
-            booksComparison: 'Steady monthly progress',
-            timeWellSpent: _formatMinutes(displayMonthMins),
-            sessionsSubtitle: 'Across ${monthSessionsCount > 0 ? monthSessionsCount : 28} sessions',
-          ),
-          JourneyPeriod.year: PeriodStats(
-            booksFinished: '${finishedBooks > 0 ? finishedBooks : 12}',
-            booksComparison: 'Annual reading milestones',
-            timeWellSpent: _formatMinutes(displayYearMins),
-            sessionsSubtitle: 'Across ${yearSessionsCount > 0 ? yearSessionsCount : 86} sessions',
-          ),
-        };
-      });
-    }
-  } finally {
-    _isLoadingData = false;
-  }
-}
 
   void _showReadingCalendarSheet(BuildContext context) {
     showModalBottomSheet<void>(
@@ -300,7 +131,60 @@ class _ReadingJourneyScreenState extends State<ReadingJourneyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activeStats = _periodStatsMap[_selectedPeriod]!;
+    final store = ReadingSessionStore.instance;
+    final user = store.currentUserEntry;
+
+    final weekSec = user.weeklySeconds;
+    final yearSec = user.yearlySeconds;
+    final monthSec = (yearSec / 4).round();
+
+    final statsMap = {
+      JourneyPeriod.week: PeriodStats(
+        booksFinished: '1',
+        booksComparison: 'Consistent weekly reading rhythm',
+        timeWellSpent: _formatMinutes(weekSec ~/ 60),
+        sessionsSubtitle: 'Across active sessions',
+      ),
+      JourneyPeriod.month: PeriodStats(
+        booksFinished: '3',
+        booksComparison: 'Steady monthly progress',
+        timeWellSpent: _formatMinutes(monthSec ~/ 60),
+        sessionsSubtitle: 'Across monthly sessions',
+      ),
+      JourneyPeriod.year: PeriodStats(
+        booksFinished: '12',
+        booksComparison: 'Annual reading milestones',
+        timeWellSpent: _formatMinutes(yearSec ~/ 60),
+        sessionsSubtitle: 'Across total sessions',
+      ),
+    };
+
+    final activeStats = statsMap[_selectedPeriod]!;
+    final streakDays = user.streakDays;
+    final levelTitle = user.rankTier;
+    final totalWeeklyTime = _formatMinutes(weekSec ~/ 60);
+
+    int currentLevel = 4;
+    int currentPoints = 720;
+    int targetPoints = 1000;
+    final totalMins = yearSec ~/ 60;
+    if (totalMins >= 1200) {
+      currentLevel = 5;
+      currentPoints = totalMins;
+      targetPoints = 2000;
+    } else if (totalMins >= 600) {
+      currentLevel = 4;
+      currentPoints = 720;
+      targetPoints = 1000;
+    } else if (totalMins >= 300) {
+      currentLevel = 3;
+      currentPoints = totalMins;
+      targetPoints = 600;
+    } else {
+      currentLevel = 2;
+      currentPoints = totalMins;
+      targetPoints = 300;
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -332,18 +216,18 @@ class _ReadingJourneyScreenState extends State<ReadingJourneyScreen> {
               // ── Weekly Rhythm Bar Chart + Streak ───────────
               WeeklyRhythmChart(
                 bars: _weeklyBars,
-                totalTime: _totalWeeklyTime,
+                totalTime: totalWeeklyTime,
                 trendText: '↗ Consistent weekly habit',
-                streakDays: _streakDays,
+                streakDays: streakDays,
               ),
               const SizedBox(height: 20),
 
               // ── Reader Level Card ──────────────────────────
               ReaderLevelCard(
-                currentLevel: _currentLevel,
-                levelTitle: _rankTier,
-                currentPoints: _currentPoints,
-                targetPoints: _targetPoints,
+                currentLevel: currentLevel,
+                levelTitle: levelTitle,
+                currentPoints: currentPoints,
+                targetPoints: targetPoints,
                 nextTierTitle: 'Book sage',
               ),
               const SizedBox(height: 28),

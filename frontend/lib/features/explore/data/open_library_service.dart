@@ -15,8 +15,21 @@ class OpenLibraryBook {
   final String? workKey;
   final String? description;
   final List<String> subjects;
+  final String? iaId;
+  final bool hasFulltext;
+  final String? ebookAccess;
 
   String? get coverUrl => coverImageUrl;
+
+  bool get isPublicDomain => ebookAccess == 'public';
+  bool get hasFreeDownload =>
+      (isPublicDomain || hasFulltext) && iaId != null && iaId!.isNotEmpty;
+  String? get epubDownloadUrl =>
+      hasFreeDownload ? 'https://archive.org/download/$iaId/$iaId.epub' : null;
+  String? get pdfDownloadUrl =>
+      hasFreeDownload ? 'https://archive.org/download/$iaId/$iaId.pdf' : null;
+  String? get archiveDetailsUrl =>
+      iaId != null ? 'https://archive.org/details/$iaId' : null;
 
   const OpenLibraryBook({
     required this.id,
@@ -29,6 +42,9 @@ class OpenLibraryBook {
     this.workKey,
     this.description,
     this.subjects = const [],
+    this.iaId,
+    this.hasFulltext = false,
+    this.ebookAccess,
   });
 
   factory OpenLibraryBook.fromDoc(Map<String, dynamic> doc) {
@@ -79,6 +95,16 @@ class OpenLibraryBook {
           .toList(growable: false);
     }
 
+    String? iaId;
+    if (doc['ia'] is List && (doc['ia'] as List).isNotEmpty) {
+      iaId = (doc['ia'] as List).first.toString();
+    } else if (doc['ia'] is String) {
+      iaId = doc['ia'] as String;
+    }
+
+    final hasFulltext = doc['has_fulltext'] == true;
+    final ebookAccess = doc['ebook_access']?.toString();
+
     return OpenLibraryBook(
       id: key.isNotEmpty ? key : '$title-$author-${coverId ?? 0}',
       title: title,
@@ -89,6 +115,9 @@ class OpenLibraryBook {
       coverId: coverId,
       workKey: key,
       subjects: subjects,
+      iaId: iaId,
+      hasFulltext: hasFulltext,
+      ebookAccess: ebookAccess,
     );
   }
 
@@ -96,6 +125,9 @@ class OpenLibraryBook {
     String? description,
     List<String>? subjects,
     String? coverImageUrl,
+    String? iaId,
+    bool? hasFulltext,
+    String? ebookAccess,
   }) {
     return OpenLibraryBook(
       id: id,
@@ -108,6 +140,9 @@ class OpenLibraryBook {
       workKey: workKey,
       description: description ?? this.description,
       subjects: subjects ?? this.subjects,
+      iaId: iaId ?? this.iaId,
+      hasFulltext: hasFulltext ?? this.hasFulltext,
+      ebookAccess: ebookAccess ?? this.ebookAccess,
     );
   }
 }
@@ -150,7 +185,8 @@ class OpenLibraryService {
       return _searchCache[cacheKey]!;
     }
 
-    const fields = 'key,title,author_name,cover_i,cover_edition_key,first_publish_year,isbn,subject';
+    const fields =
+        'key,title,author_name,cover_i,cover_edition_key,first_publish_year,isbn,subject,ia,has_fulltext,ebook_access';
     final uri = Uri.parse(
       'https://openlibrary.org/search.json?q=${Uri.encodeComponent(cleanQuery)}&fields=$fields&limit=$limit&page=$page',
     );
@@ -193,7 +229,8 @@ class OpenLibraryService {
       return _shelfCache[cacheKey]!;
     }
 
-    const fields = 'key,title,author_name,cover_i,cover_edition_key,first_publish_year,isbn,subject';
+    const fields =
+        'key,title,author_name,cover_i,cover_edition_key,first_publish_year,isbn,subject,ia,has_fulltext,ebook_access';
     final uri = Uri.parse(
       'https://openlibrary.org/search.json?subject=${Uri.encodeComponent(subjectSlug)}&fields=$fields&limit=$limit&page=$page',
     );
@@ -255,8 +292,44 @@ class OpenLibraryService {
 
         if (desc != null) {
           _descriptionCache[key] = desc;
-          return book.copyWith(description: desc);
         }
+
+        // If iaId wasn't previously loaded, check work editions
+        String? iaId = book.iaId;
+        String? ebookAccess = book.ebookAccess;
+        bool hasFulltext = book.hasFulltext;
+
+        if (iaId == null) {
+          try {
+            final edUri = Uri.parse('https://openlibrary.org$cleanKey/editions.json?limit=3');
+            final edRes = await http
+                .get(edUri, headers: {'User-Agent': _userAgent})
+                .timeout(const Duration(seconds: 5));
+            if (edRes.statusCode == 200) {
+              final edData = json.decode(edRes.body) as Map<String, dynamic>;
+              final entries = edData['entries'] as List? ?? [];
+              for (final entry in entries) {
+                final ocaid = entry['ocaid'] ??
+                    (entry['ia'] is List && (entry['ia'] as List).isNotEmpty
+                        ? entry['ia'][0]
+                        : null);
+                if (ocaid != null) {
+                  iaId = ocaid.toString();
+                  hasFulltext = true;
+                  ebookAccess = 'public';
+                  break;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        return book.copyWith(
+          description: desc,
+          iaId: iaId,
+          ebookAccess: ebookAccess,
+          hasFulltext: hasFulltext,
+        );
       }
     } catch (e) {
       debugPrint('Error fetching book details for $key: $e');

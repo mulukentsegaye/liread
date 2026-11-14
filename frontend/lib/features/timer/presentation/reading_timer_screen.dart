@@ -213,6 +213,9 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                   labelColor: AppColors.primary,
                   unselectedLabelColor: AppColors.textSecondary,
                   indicatorColor: AppColors.primary,
+                  splashFactory: NoSplash.splashFactory,
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  dividerColor: Colors.transparent,
                   tabs: const [
                     Tab(text: 'Light Themes'),
                     Tab(text: 'Dark Themes'),
@@ -722,7 +725,8 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.divider),
                 ),
-                child: InkWell(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
                   onTap: () {
                     setState(() {
                       final nextIdx = (_ambientSounds.indexOf(_activeAmbientSound) + 1) % _ambientSounds.length;

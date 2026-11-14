@@ -4,7 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../data/ebook_download_service.dart';
 import '../../data/open_library_service.dart';
+import '../../data/telegram_bot_service.dart';
 import 'book_cover_image.dart';
 
 /// Modal bottom sheet displaying detailed book metadata and actions.
@@ -45,12 +47,128 @@ class BookDetailsSheet extends StatefulWidget {
 class _BookDetailsSheetState extends State<BookDetailsSheet> {
   late OpenLibraryBook _book;
   bool _loadingDetails = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  String? _downloadedFilePath;
+  String _selectedFormat = 'epub';
+  String _botUsername = TelegramBotService.defaultBotName;
 
   @override
   void initState() {
     super.initState();
     _book = widget.book;
     _fetchDetails();
+    _loadBotUsername();
+  }
+
+  Future<void> _loadBotUsername() async {
+    final bot = await TelegramBotService.instance.getBotUsername();
+    if (mounted) setState(() => _botUsername = bot);
+  }
+
+  Future<void> _handleDownload() async {
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+    });
+
+    final result = await EbookDownloadService.instance.downloadBook(
+      book: _book,
+      format: _selectedFormat,
+      onProgress: (p) {
+        if (mounted) setState(() => _downloadProgress = p);
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isDownloading = false;
+      if (result.success) {
+        _downloadedFilePath = result.filePath;
+      }
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result.success
+            ? 'Downloaded "${_book.title}" (${_selectedFormat.toUpperCase()})!'
+            : 'Download failed: ${result.message}'),
+        action: result.success && result.filePath != null
+            ? SnackBarAction(
+                label: 'Open',
+                onPressed: () => EbookDownloadService.instance
+                    .openDownloadedBook(result.filePath!),
+              )
+            : null,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  Future<void> _handleSendToTelegramBot() async {
+    final ok = await TelegramBotService.instance.launchBotWithBook(_book);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Could not open Telegram with @$_botUsername. Check your connection or bot configuration.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleShareToTelegram() async {
+    await TelegramBotService.instance.shareBookToTelegram(_book);
+  }
+
+  Future<void> _showConfigureBotDialog() async {
+    final controller = TextEditingController(text: _botUsername);
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Configure Telegram Bot',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter the Telegram bot username you want Liread to redirect to for book downloads:',
+              style: GoogleFonts.plusJakartaSans(fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                prefixText: '@',
+                hintText: 'BooksFinderBot',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (updated != null && updated.isNotEmpty) {
+      await TelegramBotService.instance.setBotUsername(updated);
+      if (mounted) {
+        setState(() => _botUsername = updated.replaceAll('@', ''));
+      }
+    }
   }
 
   Future<void> _fetchDetails() async {
@@ -284,6 +402,24 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                         color: textSecondary,
                       ),
                     ),
+
+                  // ── Direct 1-Click eBook Download ─────────────────
+                  _buildDownloadSection(
+                    isDark: isDark,
+                    primaryColor: primaryColor,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    dividerColor: dividerColor,
+                  ),
+
+                  // ── Telegram Bot Redirect ─────────────────────────
+                  _buildTelegramSection(
+                    isDark: isDark,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    dividerColor: dividerColor,
+                  ),
+
                   const SizedBox(height: 24),
                 ],
               ),
@@ -374,6 +510,379 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDownloadSection({
+    required bool isDark,
+    required Color primaryColor,
+    required Color textPrimary,
+    required Color textSecondary,
+    required Color dividerColor,
+  }) {
+    final hasFree = _book.hasFreeDownload;
+    final cardBg = isDark
+        ? (hasFree ? const Color(0xFF14221A) : const Color(0xFF1B1E21))
+        : (hasFree ? const Color(0xFFF3F8F5) : const Color(0xFFF7F8F9));
+    final borderColor =
+        hasFree ? primaryColor.withValues(alpha: 0.35) : dividerColor;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: (hasFree ? primaryColor : Colors.grey)
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  hasFree ? Icons.download_rounded : Icons.lock_outline_rounded,
+                  size: 18,
+                  color: hasFree ? primaryColor : textSecondary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Direct eBook Download',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      hasFree
+                          ? 'Public domain · DRM-free full text'
+                          : 'Modern edition · Protected by copyright',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasFree)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: primaryColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'Free',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: primaryColor,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (hasFree) ...[
+            // Format choice pills
+            Row(
+              children: [
+                _buildFormatChoice(
+                  label: 'EPUB',
+                  isSelected: _selectedFormat == 'epub',
+                  primaryColor: primaryColor,
+                  isDark: isDark,
+                  onTap: () => setState(() => _selectedFormat = 'epub'),
+                ),
+                const SizedBox(width: 8),
+                _buildFormatChoice(
+                  label: 'PDF',
+                  isSelected: _selectedFormat == 'pdf',
+                  primaryColor: primaryColor,
+                  isDark: isDark,
+                  onTap: () => setState(() => _selectedFormat = 'pdf'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_isDownloading) ...[
+              LinearProgressIndicator(
+                value: _downloadProgress > 0 ? _downloadProgress : null,
+                backgroundColor: primaryColor.withValues(alpha: 0.2),
+                color: primaryColor,
+                minHeight: 6,
+                borderRadius: BorderRadius.circular(3),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _downloadProgress > 0
+                    ? 'Downloading ${(_downloadProgress * 100).toInt()}%...'
+                    : 'Connecting to archive servers...',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: textSecondary,
+                ),
+              ),
+            ] else if (_downloadedFilePath != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => EbookDownloadService.instance
+                          .openDownloadedBook(_downloadedFilePath!),
+                      icon: const Icon(Icons.folder_open_rounded, size: 16),
+                      label: Text(
+                          'Open ${_selectedFormat.toUpperCase()} File'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: primaryColor,
+                        side: BorderSide(color: primaryColor),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _handleDownload,
+                    tooltip: 'Download again',
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                  ),
+                ],
+              ),
+            ] else ...[
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _handleDownload,
+                  icon: const Icon(Icons.file_download_outlined, size: 18),
+                  label:
+                      Text('Download ${_selectedFormat.toUpperCase()} (1-Click)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ] else ...[
+            Text(
+              'Direct DRM-free file downloads are not hosted on Open Library for this copyrighted edition. Use the Telegram bot below to receive or search for this book file.',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12,
+                height: 1.4,
+                color: textSecondary,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTelegramSection({
+    required bool isDark,
+    required Color textPrimary,
+    required Color textSecondary,
+    required Color dividerColor,
+  }) {
+    const telegramBlue = Color(0xFF2AABEE);
+    final cardBg =
+        isDark ? const Color(0xFF14202B) : const Color(0xFFF1F8FC);
+    final borderColor = telegramBlue.withValues(alpha: 0.3);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: telegramBlue.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  size: 17,
+                  color: telegramBlue,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Get via Telegram Bot',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Sends book query & receives file in Telegram',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              InkWell(
+                onTap: _showConfigureBotDialog,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: telegramBlue.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '@$_botUsername',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: telegramBlue,
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      const Icon(Icons.edit_outlined,
+                          size: 12, color: telegramBlue),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Redirects to Telegram and submits "${_book.title}" to @$_botUsername so the bot can send you the book file directly.',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              height: 1.4,
+              color: textSecondary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _handleSendToTelegramBot,
+                  icon: const Icon(Icons.send_rounded, size: 15),
+                  label: const Text('Send to Telegram Bot'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: telegramBlue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    textStyle: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _handleShareToTelegram,
+                icon: const Icon(Icons.share_outlined, size: 15),
+                label: const Text('Share Card'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: telegramBlue,
+                  side:
+                      BorderSide(color: telegramBlue.withValues(alpha: 0.5)),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  textStyle: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormatChoice({
+    required String label,
+    required bool isSelected,
+    required Color primaryColor,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor
+              : (isDark
+                  ? const Color(0xFF222B25)
+                  : const Color(0xFFE8ECE9)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: isSelected
+                ? Colors.white
+                : (isDark ? Colors.white70 : Colors.black87),
+          ),
+        ),
       ),
     );
   }

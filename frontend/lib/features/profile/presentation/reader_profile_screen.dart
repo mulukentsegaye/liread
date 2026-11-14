@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
-import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 
 /// Real Reader Profile & Sanctuary Shelf screen.
@@ -486,10 +485,13 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                     unselectedLabelColor: AppColors.textSecondary,
                     indicatorColor: AppColors.primary,
                     indicatorSize: TabBarIndicatorSize.tab,
+                    splashFactory: NoSplash.splashFactory,
+                    overlayColor: WidgetStateProperty.all(Colors.transparent),
+                    dividerColor: Colors.transparent,
                     tabs: const [
-                      Tab(text: 'Bookshelf'),
-                      Tab(text: 'Journey'),
-                      Tab(text: 'Saved notes'),
+                      Tab(text: 'On my shelf'),
+                      Tab(text: 'Saved passages'),
+                      Tab(text: 'My reading circles'),
                     ],
                   ),
                 ),
@@ -499,14 +501,14 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           body: TabBarView(
             controller: _tabController,
             children: [
-              // 1. Bookshelf
+              // 1. On my shelf
               _buildBookshelfTab(cardBg),
 
-              // 2. Journey (reading analytics & streaks)
-              const ReadingJourneyScreen(),
-
-              // 3. Saved notes
+              // 2. Saved passages
               _buildSavedPassagesTab(surfaceColor),
+
+              // 3. My reading circles
+              _buildReadingCirclesTab(surfaceColor),
             ],
           ),
         ),
@@ -725,6 +727,51 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildReadingCirclesTab(Color surfaceColor) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.people_outline_rounded, color: AppColors.primary),
+                  SizedBox(width: 8),
+                  Text(
+                    'Community Circle Stats',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Connect with readers sharing notes, book recommendations, and daily habit commitments.',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatColumn('$_currentStreak d', 'Streak'),
+                  _buildStatColumn('${_bookshelfItems.length}', 'Bookshelf'),
+                  _buildStatColumn('${_savedPassages.length}', 'Saved quotes'),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

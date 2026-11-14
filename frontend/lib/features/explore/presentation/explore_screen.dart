@@ -236,36 +236,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           ),
                         ],
                       ),
-                      // Quick source badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkPrimarySurface : AppColors.primarySurface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: primaryColor.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.public_rounded,
-                              size: 13,
-                              color: primaryColor,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              'Open Library',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: primaryColor,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+
                     ],
                   ),
                 ),

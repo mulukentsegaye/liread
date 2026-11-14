@@ -154,7 +154,6 @@ void main() {
 
     expect(find.text('Explore'), findsWidgets);
     expect(find.text('Search Open Library & curated bookshelves'), findsOneWidget);
-    expect(find.text('Open Library'), findsOneWidget);
     expect(find.text('Search title, author, or subject...'), findsOneWidget);
     expect(find.text('BOOK OF THE WEEK'), findsOneWidget);
   });

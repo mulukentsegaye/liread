@@ -27,7 +27,7 @@ class QuoteCard extends StatelessWidget {
           children: [
             // Quote marks
             Text(
-              '\u201C',
+              '“',
               style: GoogleFonts.lora(
                 fontSize: 36,
                 fontWeight: FontWeight.w700,

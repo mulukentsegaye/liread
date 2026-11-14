@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../../core/services/supabase_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../data/open_library_service.dart';
@@ -295,17 +296,55 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
             child: Row(
               children: [
                 Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      Navigator.of(context).pop();
+                      await SupabaseService.instance.updateBookStatus(
+                        title: _book.title,
+                        author: _book.author,
+                        status: 'want_to_read',
+                        coverImageUrl: _book.coverImageUrl,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('"${_book.title}" added to your bookshelf!'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 17),
+                    label: Text(
+                      'Add to Shelf',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: primaryColor,
+                      side: BorderSide(color: primaryColor, width: 1.5),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(context).pop();
                       widget.onStartTimer?.call(_book);
                     },
-                    icon: const Icon(Icons.timer_outlined, size: 18),
+                    icon: const Icon(Icons.timer_outlined, size: 17),
                     label: Text(
                       'Read in Timer',
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
+                        fontSize: 13,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
@@ -319,7 +358,7 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 IconButton(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close_rounded),

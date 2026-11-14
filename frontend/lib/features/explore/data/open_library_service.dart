@@ -16,6 +16,8 @@ class OpenLibraryBook {
   final String? description;
   final List<String> subjects;
 
+  String? get coverUrl => coverImageUrl;
+
   const OpenLibraryBook({
     required this.id,
     required this.title,
@@ -130,7 +132,7 @@ class OpenLibraryService {
   final Map<String, List<OpenLibraryBook>> _shelfCache = {};
   final Map<String, String> _descriptionCache = {};
 
-  static const String _userAgent = 'ReadersHubMobile/1.0 (contact: readershub@app.local)';
+  static const String _userAgent = 'LireadMobile/1.0 (contact: liread@app.local)';
 
   /// Search Open Library books by user keyword query.
   Future<SearchBooksResult> searchBooks(

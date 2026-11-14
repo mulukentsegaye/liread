@@ -1,11 +1,11 @@
 {
-    "name": "readers_hub",
-    "short_name": "readers_hub",
+    "name": "Liread",
+    "short_name": "Liread",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Liread - Social Reading App",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

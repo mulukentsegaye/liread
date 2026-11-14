@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../data/reading_session_store.dart';
 import '../domain/leaderboard_models.dart';
 
 /// Community Leaderboard & Reading Circle screen ("Reading circle").
+/// Connected to live Supabase community leaderboard metrics.
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
 
@@ -15,6 +17,34 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   LeaderboardPeriod _selectedPeriod = LeaderboardPeriod.daily;
+  List<LeaderboardEntry> _liveEntries = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLiveLeaderboard();
+  }
+
+  Future<void> _fetchLiveLeaderboard() async {
+    setState(() => _isLoading = true);
+    final entries = await SupabaseService.instance.fetchLeaderboard(_selectedPeriod);
+    if (mounted) {
+      setState(() {
+        _liveEntries = entries;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _onPeriodChanged(LeaderboardPeriod period) {
+    if (_selectedPeriod != period) {
+      setState(() {
+        _selectedPeriod = period;
+      });
+      _fetchLiveLeaderboard();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,210 +55,238 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           builder: (context, _) {
             final store = ReadingSessionStore.instance;
             final currentUserEntry = store.currentUserEntry;
-            final topEntries = store.getRankedEntries(_selectedPeriod);
-            final userRank = store.getCurrentUserRank(_selectedPeriod);
 
-            return CustomScrollView(
-              slivers: [
-                // ── Header ─────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reading circle',
-                          style: Theme.of(context).textTheme.headlineLarge,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Every page counts. Inspired together.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            // Use live Supabase entries if available, or fall back to active session store entries
+            final displayEntries = _liveEntries.isNotEmpty
+                ? _liveEntries
+                : store.getRankedEntries(_selectedPeriod);
 
-                // ── Period Selector Tabs ───────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: AppColors.resolve(
-                          context,
-                          light: AppColors.bookCardBackground,
-                          dark: AppColors.darkBookCardBackground,
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
+            final userRank = _liveEntries.isNotEmpty
+                ? (_liveEntries.indexWhere((e) => e.isCurrentUser) != -1
+                    ? _liveEntries.indexWhere((e) => e.isCurrentUser) + 1
+                    : 1)
+                : store.getCurrentUserRank(_selectedPeriod);
+
+            return RefreshIndicator(
+              onRefresh: _fetchLiveLeaderboard,
+              color: AppColors.primary,
+              child: CustomScrollView(
+                slivers: [
+                  // ── Header ─────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildPeriodTab(LeaderboardPeriod.daily, 'Daily rank'),
-                          _buildPeriodTab(LeaderboardPeriod.weekly, 'Weekly rank'),
-                          _buildPeriodTab(LeaderboardPeriod.yearly, 'Yearly rank'),
+                          Text(
+                            'Reading circle',
+                            style: Theme.of(context).textTheme.headlineLarge,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Every page counts. Inspired together.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ],
                       ),
                     ),
                   ),
-                ),
 
-                // ── Period Subtitle / Context ──────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 6, 24, 16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today_outlined,
-                          size: 14,
-                          color: AppColors.primary.withValues(alpha: 0.8),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _getPeriodContextLabel(_selectedPeriod),
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textSecondary,
+                  // ── Period Selector Tabs ───────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.resolve(
+                            context,
+                            light: AppColors.bookCardBackground,
+                            dark: AppColors.darkBookCardBackground,
                           ),
+                          borderRadius: BorderRadius.circular(14),
                         ),
-                      ],
+                        child: Row(
+                          children: [
+                            _buildPeriodTab(LeaderboardPeriod.daily, 'Daily rank'),
+                            _buildPeriodTab(LeaderboardPeriod.weekly, 'Weekly rank'),
+                            _buildPeriodTab(LeaderboardPeriod.yearly, 'Yearly rank'),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
 
-                // ── YOUR STANDING Card ─────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'YOUR STANDING',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                letterSpacing: 1.2,
-                                color: AppColors.primary,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.resolve(
-                              context,
-                              light: AppColors.quoteCardBackground,
-                              dark: AppColors.darkQuoteCardBackground,
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.25),
+                  // ── Period Subtitle / Context ──────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 6, 24, 16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today_outlined,
+                            size: 14,
+                            color: AppColors.primary.withValues(alpha: 0.8),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _getPeriodContextLabel(_selectedPeriod),
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // ── YOUR STANDING Card ─────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'YOUR STANDING',
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  letterSpacing: 1.2,
                                   color: AppColors.primary,
-                                  shape: BoxShape.circle,
                                 ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '#$userRank',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.resolve(
+                                context,
+                                light: AppColors.quoteCardBackground,
+                                dark: AppColors.darkQuoteCardBackground,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text(
+                                    '#$userRank',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        SupabaseService.instance.currentProfile?['full_name'] ??
+                                            currentUserEntry.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                        ),
+                                      ),
+                                      Text(
+                                        SupabaseService.instance.currentProfile?['rank_tier'] ??
+                                            currentUserEntry.rankTier,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     Text(
-                                      currentUserEntry.name,
-                                      style: const TextStyle(
+                                      currentUserEntry.formattedTimeFor(_selectedPeriod),
+                                      style: GoogleFonts.dmMono(
+                                        fontSize: 16,
                                         fontWeight: FontWeight.w700,
-                                        fontSize: 15,
+                                        color: AppColors.primary,
                                       ),
                                     ),
                                     Text(
-                                      currentUserEntry.rankTier,
+                                      '${currentUserEntry.streakDays}d streak',
                                       style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.primary,
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    currentUserEntry.formattedTimeFor(_selectedPeriod),
-                                    style: GoogleFonts.dmMono(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.primary,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${currentUserEntry.streakDays}d streak',
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                  // ── All Readers Section ────────────────────────
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        'All readers',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+                  // ── Readers List ───────────────────────────────
+                  if (_isLoading)
+                    const SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
                           ),
                         ),
-                      ],
+                      ),
+                    )
+                  else
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final entry = displayEntries[index];
+                          final rank = index + 1;
+                          return _buildLeaderboardTile(context, entry, rank);
+                        },
+                        childCount: displayEntries.length,
+                      ),
                     ),
-                  ),
-                ),
 
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                // ── All Readers Section ────────────────────────
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      'All readers',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
-
-                // ── Readers List ───────────────────────────────
-                SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final entry = topEntries[index];
-                      final rank = index + 1;
-                      return _buildLeaderboardTile(context, entry, rank);
-                    },
-                    childCount: topEntries.length,
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 100)),
-              ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                ],
+              ),
             );
           },
         ),
@@ -240,11 +298,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final isSelected = _selectedPeriod == period;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedPeriod = period;
-          });
-        },
+        onTap: () => _onPeriodChanged(period),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(vertical: 8),

@@ -129,6 +129,41 @@ class ReadingSessionStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Updates current user entry with real profile data from Supabase.
+  void updateCurrentUserProfile(Map<String, dynamic> profile) {
+    final idx = _entries.indexWhere((e) => e.isCurrentUser);
+    if (idx != -1) {
+      final old = _entries[idx];
+      final name = profile['full_name'] ?? profile['username'] ?? old.name;
+      final handle = '@${profile['username'] ?? old.handle.replaceAll('@', '')}';
+      final initials = name.toString().trim().split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase();
+      final streak = (profile['current_streak'] as num?)?.toInt() ?? old.streakDays;
+      final tier = profile['rank_tier']?.toString() ?? old.rankTier;
+
+      if (old.name == name.toString() &&
+          old.handle == handle &&
+          old.streakDays == streak &&
+          old.rankTier == tier) {
+        return;
+      }
+
+      _entries[idx] = LeaderboardEntry(
+        userId: old.userId,
+        name: name.toString(),
+        handle: handle,
+        initials: initials.isNotEmpty ? initials : old.initials,
+        currentBook: old.currentBook,
+        rankTier: tier,
+        streakDays: streak,
+        dailySeconds: old.dailySeconds,
+        weeklySeconds: old.weeklySeconds,
+        yearlySeconds: old.yearlySeconds,
+        isCurrentUser: true,
+      );
+      notifyListeners();
+    }
+  }
+
   /// Records a completed reading timer session and updates the current user's
   /// daily, weekly, and yearly leaderboard totals.
   void recordSession({

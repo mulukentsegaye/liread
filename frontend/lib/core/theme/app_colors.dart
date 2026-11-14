@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Readers Hub color palette — sage-green organic tones
+/// Liread color palette — sage-green organic tones
 /// supporting both Light Mode and Dark Mode.
 class AppColors {
   AppColors._();

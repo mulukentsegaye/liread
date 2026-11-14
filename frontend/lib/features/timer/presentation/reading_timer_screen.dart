@@ -86,7 +86,17 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
 
   void _finishSession() {
     _timer?.cancel();
-    final durationSec = _secondsElapsed > 0 ? _secondsElapsed : 20 * 60; // fallback realistic session
+    if (_secondsElapsed <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No reading time recorded yet. Start the timer to begin your reading session.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final durationSec = _secondsElapsed;
 
     showDialog<void>(
       context: context,
@@ -270,40 +280,168 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
     );
   }
 
-  void _showBookSelector() {
-    final controller = TextEditingController(text: _currentBook);
-    showDialog<void>(
+  void _showBookSelector() async {
+    final shelf = await SupabaseService.instance.fetchBookshelf();
+    if (!mounted) return;
+
+    final titleCtrl = TextEditingController(text: _currentBook);
+    final authorCtrl = TextEditingController(text: _currentAuthor);
+
+    showModalBottomSheet<void>(
       context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Change Book'),
-          content: TextField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'Book Title',
-              hintText: 'e.g. Before the coffee gets cold',
-              border: OutlineInputBorder(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) {
+        final surfaceColor = AppColors.resolve(
+          sheetCtx,
+          light: AppColors.surface,
+          dark: AppColors.darkSurface,
+        );
+
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetCtx).size.height * 0.75,
+          ),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 14,
+            bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 20,
+          ),
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.divider,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'Select Book for Timer',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Pick from your sanctuary bookshelf or type any title:',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+
+                if (shelf.isNotEmpty) ...[
+                  const Text(
+                    'FROM YOUR BOOKSHELF',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.1,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...shelf.take(5).map((b) {
+                    final bTitle = b['title'] ?? 'Untitled';
+                    final bAuthor = b['author'] ?? 'Unknown Author';
+                    final isSel = bTitle.toString().toLowerCase() == _currentBook.toLowerCase();
+
+                    return ListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      leading: Icon(
+                        Icons.bookmark_rounded,
+                        color: isSel ? AppColors.primary : AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      title: Text(
+                        bTitle,
+                        style: TextStyle(
+                          fontWeight: isSel ? FontWeight.w700 : FontWeight.w600,
+                          color: isSel ? AppColors.primary : null,
+                        ),
+                      ),
+                      subtitle: Text(bAuthor, style: const TextStyle(fontSize: 11)),
+                      trailing: isSel
+                          ? const Icon(Icons.check_circle_rounded, color: AppColors.primary, size: 20)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          _currentBook = bTitle;
+                          _currentAuthor = bAuthor;
+                        });
+                        Navigator.of(sheetCtx).pop();
+                      },
+                    );
+                  }),
+                  const SizedBox(height: 14),
+                  const Divider(height: 1, color: AppColors.divider),
+                  const SizedBox(height: 14),
+                ],
+
+                const Text(
+                  'CUSTOM BOOK',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Book Title',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: authorCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Author Name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      final t = titleCtrl.text.trim();
+                      final a = authorCtrl.text.trim();
+                      if (t.isNotEmpty) {
+                        setState(() {
+                          _currentBook = t;
+                          _currentAuthor = a.isNotEmpty ? a : 'Author';
+                        });
+                      }
+                      Navigator.of(sheetCtx).pop();
+                    },
+                    child: const Text('Apply Book to Timer'),
+                  ),
+                ),
+              ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (controller.text.trim().isNotEmpty) {
-                  setState(() {
-                    _currentBook = controller.text.trim();
-                    _currentAuthor = 'Author';
-                  });
-                }
-                Navigator.of(ctx).pop();
-              },
-              child: const Text('Select'),
-            ),
-          ],
         );
       },
     );

@@ -23,5 +23,5 @@ void main() async {
     ),
   );
 
-  runApp(const ReadersHubApp());
+  runApp(const LireadApp());
 }

@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'app_colors.dart';
 
-/// Central theme configuration for Readers Hub (Light & Dark mode).
+/// Central theme configuration for Liread (Light & Dark mode).
 class AppTheme {
   AppTheme._();
 

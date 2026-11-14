@@ -4,10 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
-import '../../leaderboard/data/reading_session_store.dart';
-import '../../leaderboard/domain/leaderboard_models.dart';
+import '../../onboarding/presentation/onboarding_screen.dart';
 
-/// Reader Profile & Settings screen ("Your corner").
+/// Real Reader Profile & Sanctuary Shelf screen.
+/// Connected to Supabase Auth and database tables (profiles, bookshelf, saved_posts).
 class ReaderProfileScreen extends StatefulWidget {
   const ReaderProfileScreen({super.key});
 
@@ -19,32 +19,16 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
-  String _fullName = 'Emma Laurent';
-  String _handle = '@emma.reads';
-  String _bio = 'Seeking stillness between pages. Currently captivated by Japanese contemporary fiction and stoic essays.';
+  String _fullName = 'Reader';
+  String _handle = '@reader';
+  String _bio = 'Mindful reader cultivating daily habits.';
+  String _rankTier = 'Novice Reader';
   int _dailyGoalMinutes = 60;
+  int _totalMinutesRead = 0;
+  int _currentStreak = 0;
 
-    List<Map<String, dynamic>> _bookshelfItems = const [
-    {
-      'title': 'Before the coffee gets cold',
-      'author': 'Toshikazu Kawaguchi',
-      'status': 'currently_reading',
-      'progress_percentage': 42,
-    },
-    {
-      'title': 'The Creative Act',
-      'author': 'Rick Rubin',
-      'status': 'currently_reading',
-      'progress_percentage': 75,
-    },
-    {
-      'title': 'East of Eden',
-      'author': 'John Steinbeck',
-      'status': 'finished',
-      'progress_percentage': 100,
-    },
-  ];
-  bool _isLoadingShelf = false;
+  List<Map<String, dynamic>> _bookshelfItems = [];
+  List<Map<String, dynamic>> _savedPassages = [];
 
   @override
   void initState() {
@@ -61,20 +45,42 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
 
   Future<void> _loadProfileData() async {
     final profile = await SupabaseService.instance.fetchCurrentUserProfile();
-    if (profile != null && mounted) {
+    if (mounted) {
       setState(() {
-        _fullName = profile['full_name'] ?? _fullName;
-        _handle = '@${profile['username'] ?? _handle.replaceAll('@', '')}';
-        _bio = profile['bio'] ?? _bio;
-        _dailyGoalMinutes = profile['daily_goal_minutes'] ?? _dailyGoalMinutes;
+        if (profile != null) {
+          _fullName = profile['full_name'] ?? _fullName;
+          _handle = '@${profile['username'] ?? _handle.replaceAll('@', '')}';
+          _bio = profile['bio'] ?? _bio;
+          _rankTier = profile['rank_tier'] ?? _rankTier;
+          _dailyGoalMinutes = (profile['daily_goal_minutes'] as num?)?.toInt() ?? _dailyGoalMinutes;
+          _totalMinutesRead = (profile['total_minutes_read'] as num?)?.toInt() ?? _totalMinutesRead;
+          _currentStreak = (profile['current_streak'] as num?)?.toInt() ?? _currentStreak;
+        } else if (SupabaseService.instance.isGuest) {
+          _fullName = 'Guest Reader';
+          _handle = '@guest';
+          _bio = 'Exploring LiRead sanctuary as a guest.';
+        }
       });
     }
 
+    _loadShelf();
+    _loadSaved();
+  }
+
+  Future<void> _loadShelf() async {
     final shelf = await SupabaseService.instance.fetchBookshelf();
     if (mounted) {
       setState(() {
         _bookshelfItems = shelf;
-        _isLoadingShelf = false;
+      });
+    }
+  }
+
+  Future<void> _loadSaved() async {
+    final saved = await SupabaseService.instance.fetchSavedPassages();
+    if (mounted) {
+      setState(() {
+        _savedPassages = saved;
       });
     }
   }
@@ -155,7 +161,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Choose a mindful daily reading habit to sustain without stress:'),
+                  const Text('Set a daily reading habit you can sustain with calm consistency:'),
                   const SizedBox(height: 16),
                   Wrap(
                     spacing: 8,
@@ -203,155 +209,34 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
     );
   }
 
-  void _showAuthModal() {
-    final emailCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
-    final userCtrl = TextEditingController();
-    bool isSignUp = false;
-
-    showModalBottomSheet<void>(
+  void _showSignOutDialog() {
+    showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Container(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.resolve(
-                  ctx,
-                  light: AppColors.surface,
-                  dark: AppColors.darkSurface,
-                ),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.divider,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    isSignUp ? 'Create a LiRead Account' : 'Welcome to LiRead',
-                    style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Sync your habits, bookshelf, and insights with the community.',
-                    style: Theme.of(ctx).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 18),
-                  if (isSignUp) ...[
-                    TextField(
-                      controller: userCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Username',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.alternate_email),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                  TextField(
-                    controller: emailCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Email Address',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: passCtrl,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Password',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock_outline),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () async {
-                        final email = emailCtrl.text.trim();
-                        final pass = passCtrl.text;
-                        if (email.isEmpty || pass.isEmpty) return;
-                        try {
-                          if (isSignUp) {
-                            await SupabaseService.instance.signUp(
-                              email,
-                              pass,
-                              userCtrl.text.trim(),
-                              _fullName,
-                            );
-                          } else {
-                            await SupabaseService.instance.signIn(email, pass);
-                          }
-                          await _loadProfileData();
-                          if (sheetContext.mounted) Navigator.of(sheetContext).pop();
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(isSignUp ? 'Account created! Welcome.' : 'Signed in successfully!'),
-                                backgroundColor: AppColors.primary,
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (sheetContext.mounted) {
-                            ScaffoldMessenger.of(sheetContext).showSnackBar(
-                              SnackBar(content: Text('Error: $e')),
-                            );
-                          }
-                        }
-                      },
-                      child: Text(isSignUp ? 'Create Account' : 'Sign In'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: TextButton(
-                      onPressed: () {
-                        setSheetState(() => isSignUp = !isSignUp);
-                      },
-                      child: Text(
-                        isSignUp
-                            ? 'Already have an account? Sign In'
-                            : 'New reader? Create an account',
-                        style: const TextStyle(color: AppColors.primary),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out of LiRead?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                await SupabaseService.instance.signOut();
+                if (mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                    (route) => false,
+                  );
+                }
+              },
+              child: const Text('Sign Out'),
+            ),
+          ],
         );
       },
     );
@@ -370,6 +255,8 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
       light: AppColors.bookCardBackground,
       dark: AppColors.darkBookCardBackground,
     );
+
+    final isGuest = SupabaseService.instance.isGuest;
 
     return Scaffold(
       body: SafeArea(
@@ -397,7 +284,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                           ),
                         ],
                       ),
-                      // Theme Switcher & Auth
+                      // Theme Switcher & Sign Out
                       Row(
                         children: [
                           IconButton(
@@ -405,22 +292,26 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                               color: AppColors.primary,
                             ),
-                            tooltip: 'Toggle Dark/Light mode',
+                            tooltip: 'Toggle Theme',
                             onPressed: () {
                               AppThemeController.instance.toggleThemeMode();
                             },
                           ),
                           IconButton(
                             icon: Icon(
-                              SupabaseService.instance.isAuthenticated
-                                  ? Icons.account_circle_rounded
-                                  : Icons.login_rounded,
-                              color: AppColors.primary,
+                              isGuest ? Icons.login_rounded : Icons.logout_rounded,
+                              color: isGuest ? AppColors.primary : AppColors.textSecondary,
                             ),
-                            tooltip: SupabaseService.instance.isAuthenticated
-                                ? 'Account settings'
-                                : 'Sign In / Register',
-                            onPressed: _showAuthModal,
+                            tooltip: isGuest ? 'Sign In / Register' : 'Sign Out',
+                            onPressed: () {
+                              if (isGuest) {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                                );
+                              } else {
+                                _showSignOutDialog();
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -428,6 +319,40 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                   ),
                 ),
               ),
+
+              // ── Guest Banner if applicable ─────────────────
+              if (isGuest)
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Guest mode active. Create an account to sync your reading streak across devices.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+                            );
+                          },
+                          child: const Text('Join', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
               // ── Reader Identity Card ───────────────────────
               SliverToBoxAdapter(
@@ -453,7 +378,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                       children: [
                         Row(
                           children: [
-                            // Avatar
+                            // Avatar with Initials
                             CircleAvatar(
                               radius: 30,
                               backgroundColor: AppColors.primary.withValues(alpha: 0.15),
@@ -492,9 +417,9 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                                       color: AppColors.primary.withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
-                                    child: const Text(
-                                      'Thoughtful reader',
-                                      style: TextStyle(
+                                    child: Text(
+                                      _rankTier,
+                                      style: const TextStyle(
                                         color: AppColors.primary,
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,
@@ -534,21 +459,15 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                         const SizedBox(height: 16),
                         const Divider(height: 1, color: AppColors.divider),
                         const SizedBox(height: 14),
-                        // Quick Stats Row
-                        ListenableBuilder(
-                          listenable: ReadingSessionStore.instance,
-                          builder: (context, _) {
-                            final userEntry = ReadingSessionStore.instance.currentUserEntry;
-                            return Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _buildStatColumn(userEntry.formattedTimeFor(LeaderboardPeriod.yearly), 'Read time'),
-                                _buildStatColumn('${userEntry.streakDays}d', 'Streak'),
-                                _buildStatColumn('${_bookshelfItems.length}', 'Books'),
-                                _buildStatColumn('$_dailyGoalMinutes m', 'Daily goal', onTap: _showGoalAdjustDialog),
-                              ],
-                            );
-                          },
+                        // Real Stats Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildStatColumn('${_totalMinutesRead}m', 'Total read'),
+                            _buildStatColumn('${_currentStreak}d', 'Streak'),
+                            _buildStatColumn('${_bookshelfItems.length}', 'On shelf'),
+                            _buildStatColumn('$_dailyGoalMinutes m', 'Daily goal', onTap: _showGoalAdjustDialog),
+                          ],
                         ),
                       ],
                     ),
@@ -619,8 +538,25 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
   }
 
   Widget _buildBookshelfTab(Color cardBg) {
-    if (_isLoadingShelf) {
-      return const Center(child: CircularProgressIndicator());
+    if (_bookshelfItems.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        children: [
+          Icon(Icons.library_books_rounded, size: 40, color: AppColors.primary.withValues(alpha: 0.3)),
+          const SizedBox(height: 12),
+          const Text(
+            'Your sanctuary shelf is waiting',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Add books from the focus timer or discover classics in your circle.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ],
+      );
     }
 
     return ListView.builder(
@@ -630,7 +566,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
         final book = _bookshelfItems[index];
         final title = book['title'] ?? 'Untitled';
         final author = book['author'] ?? 'Unknown Author';
-        final progress = book['progress_percentage'] ?? 0;
+        final progress = (book['progress_percentage'] as num?)?.toInt() ?? 0;
         final status = book['status'] ?? 'currently_reading';
 
         String statusLabel = 'Currently Reading';
@@ -698,7 +634,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: progress / 100,
+                              value: (progress / 100).clamp(0.0, 1.0),
                               backgroundColor: AppColors.divider,
                               color: AppColors.primary,
                               minHeight: 5,
@@ -723,29 +659,36 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
   }
 
   Widget _buildSavedPassagesTab(Color surfaceColor) {
-    final savedQuotes = [
-      {
-        'quote': 'And now that you don\'t have to be perfect, you can be good.',
-        'author': 'John Steinbeck',
-        'book': 'East of Eden',
-      },
-      {
-        'quote': 'We are what we repeatedly do. Excellence, then, is not an act, but a habit.',
-        'author': 'Will Durant',
-        'book': 'The Story of Philosophy',
-      },
-      {
-        'quote': 'The object of life is not to be on the side of the majority, but to escape finding oneself in the ranks of the insane.',
-        'author': 'Marcus Aurelius',
-        'book': 'Meditations',
-      },
-    ];
+    if (_savedPassages.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        children: [
+          Icon(Icons.bookmark_border_rounded, size: 40, color: AppColors.primary.withValues(alpha: 0.3)),
+          const SizedBox(height: 12),
+          const Text(
+            'No saved passages yet',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Tap the bookmark icon under any passage in the feed to save quotes to your personal commonplace book.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+        ],
+      );
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
-      itemCount: savedQuotes.length,
+      itemCount: _savedPassages.length,
       itemBuilder: (context, index) {
-        final q = savedQuotes[index];
+        final q = _savedPassages[index];
+        final quoteText = q['quote'] ?? '';
+        final author = q['author'] ?? 'Unknown Author';
+        final book = q['book'] ?? 'Untitled';
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -758,7 +701,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '"${q['quote']}"',
+                '"$quoteText"',
                 style: GoogleFonts.newsreader(
                   fontSize: 15,
                   height: 1.45,
@@ -771,7 +714,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '— ${q['author']}, ${q['book']}',
+                    '— $author, $book',
                     style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
                   ),
                   const Icon(Icons.bookmark_rounded, size: 18, color: AppColors.primary),
@@ -789,7 +732,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: surfaceColor,
             borderRadius: BorderRadius.circular(16),
@@ -804,22 +747,22 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                   SizedBox(width: 8),
                   Text(
                     'Community Circle Stats',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               const Text(
-                'You share mindful habits with 1,420 readers around the world.',
+                'Connect with readers sharing notes, book recommendations, and daily habit commitments.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildStatColumn('14', 'Followers'),
-                  _buildStatColumn('28', 'Following'),
-                  _buildStatColumn('38', 'Quotes shared'),
+                  _buildStatColumn('$_currentStreak d', 'Streak'),
+                  _buildStatColumn('${_bookshelfItems.length}', 'Bookshelf'),
+                  _buildStatColumn('${_savedPassages.length}', 'Saved quotes'),
                 ],
               ),
             ],

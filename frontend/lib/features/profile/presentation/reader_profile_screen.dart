@@ -487,9 +487,9 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                     indicatorColor: AppColors.primary,
                     indicatorSize: TabBarIndicatorSize.tab,
                     tabs: const [
-                      Tab(text: 'On my shelf'),
-                      Tab(text: 'Saved passages'),
-                      Tab(text: 'My reading circles'),
+                      Tab(text: 'Bookshelf'),
+                      Tab(text: 'Journey'),
+                      Tab(text: 'Saved notes'),
                     ],
                   ),
                 ),
@@ -499,14 +499,14 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           body: TabBarView(
             controller: _tabController,
             children: [
-              // 1. On my shelf
+              // 1. Bookshelf
               _buildBookshelfTab(cardBg),
 
-              // 2. Saved passages
-              _buildSavedPassagesTab(surfaceColor),
+              // 2. Journey (reading analytics & streaks)
+              const ReadingJourneyScreen(),
 
-              // 3. My reading circles
-              _buildReadingCirclesTab(surfaceColor),
+              // 3. Saved notes
+              _buildSavedPassagesTab(surfaceColor),
             ],
           ),
         ),
@@ -725,51 +725,6 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           ),
         );
       },
-    );
-  }
-
-  Widget _buildReadingCirclesTab(Color surfaceColor) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Icon(Icons.people_outline_rounded, color: AppColors.primary),
-                  SizedBox(width: 8),
-                  Text(
-                    'Community Circle Stats',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Connect with readers sharing notes, book recommendations, and daily habit commitments.',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatColumn('$_currentStreak d', 'Streak'),
-                  _buildStatColumn('${_bookshelfItems.length}', 'Bookshelf'),
-                  _buildStatColumn('${_savedPassages.length}', 'Saved quotes'),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

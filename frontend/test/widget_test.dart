@@ -54,21 +54,33 @@ void main() {
     expect(find.byType(SignInScreen), findsOneWidget);
   });
 
-  testWidgets('App renders Feed, Explore, Read timer with theme switching, Journey, Ranks, and Profile tabs', (WidgetTester tester) async {
+  testWidgets('App renders 4 streamlined tabs: Feed, Explore, Read, and Profile with Journey', (WidgetTester tester) async {
     ReadingSessionStore.instance.reset();
     AppThemeController.instance.resetForTesting();
     await tester.pumpWidget(const LireadApp(homeOverride: MainNavigationShell()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    // 1. Verify Feed header & bottom navigation items
+    // 1. Verify Feed header & 4 bottom navigation items
     expect(find.text('Between pages'), findsOneWidget);
     expect(find.text('Feed'), findsOneWidget);
     expect(find.text('Explore'), findsOneWidget);
     expect(find.text('Read'), findsOneWidget);
-    expect(find.text('Journey'), findsOneWidget);
-    expect(find.text('Ranks'), findsOneWidget);
     expect(find.text('Profile'), findsOneWidget);
+
+    // Verify Feed sub-tabs (Community Feed & Reading Circle)
+    expect(find.text('Community Feed'), findsOneWidget);
+    expect(find.text('Reading Circle'), findsOneWidget);
+
+    // Switch to 'Reading Circle' sub-tab inside Feed
+    await tester.tap(find.text('Reading Circle'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Reading circle'), findsOneWidget);
+    expect(find.text('Daily rank'), findsOneWidget);
+    expect(find.text('Weekly rank'), findsOneWidget);
+    expect(find.text('Yearly rank'), findsOneWidget);
 
     // 2. Tap on the 'Explore' tab
     await tester.tap(find.text('Explore'));
@@ -104,14 +116,23 @@ void main() {
     expect(find.text('Ceramic Frost'), findsOneWidget);
 
     await tester.tap(find.text('Ceramic Frost'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
     expect(find.text('Theme: Ceramic Frost'), findsOneWidget);
 
-    // 4. Tap on the 'Journey' tab
+    // 4. Tap on the 'Profile' tab
+    await tester.tap(find.text('Profile'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your corner'), findsOneWidget);
+    expect(find.text('The reader behind the pages.'), findsOneWidget);
+    expect(find.text('Edit profile'), findsOneWidget);
+    expect(find.text('Bookshelf'), findsOneWidget);
+    expect(find.text('Journey'), findsOneWidget);
+    expect(find.text('Saved notes'), findsOneWidget);
+
+    // Tap on the 'Journey' sub-tab within Profile
     await tester.tap(find.text('Journey'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
 
     expect(find.text('Your journey'), findsOneWidget);
     expect(find.text('Small moments. Meaningful progress.'), findsOneWidget);
@@ -120,27 +141,5 @@ void main() {
     expect(find.text('A steady rhythm'), findsOneWidget);
     expect(find.text('7-day reading streak'), findsOneWidget);
     expect(find.text('Thoughtful reader'), findsOneWidget);
-
-    // 5. Tap on the 'Ranks' tab
-    await tester.tap(find.text('Ranks'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(find.text('Reading circle'), findsOneWidget);
-    expect(find.text('Daily rank'), findsOneWidget);
-    expect(find.text('Weekly rank'), findsOneWidget);
-    expect(find.text('Yearly rank'), findsOneWidget);
-
-    // 6. Tap on the 'Profile' tab
-    await tester.tap(find.text('Profile'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(find.text('Your corner'), findsOneWidget);
-    expect(find.text('The reader behind the pages.'), findsOneWidget);
-    expect(find.text('Edit profile'), findsOneWidget);
-    expect(find.text('On my shelf'), findsOneWidget);
-    expect(find.text('Saved passages'), findsOneWidget);
-    expect(find.text('My reading circles'), findsOneWidget);
   });
 }

@@ -189,10 +189,12 @@ class LiveCoReadingFeedBanner extends StatelessWidget {
 /// and Reading Timer screen, mirroring the Sanctuary view from the web.
 class LiveReadingRoomWidget extends StatelessWidget {
   final bool showStartButton;
+  final EdgeInsetsGeometry? margin;
 
   const LiveReadingRoomWidget({
     super.key,
     this.showStartButton = true,
+    this.margin,
   });
 
   @override
@@ -209,7 +211,7 @@ class LiveReadingRoomWidget extends StatelessWidget {
         final borderColor = isDark ? AppColors.darkDivider : AppColors.divider;
 
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          margin: margin ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: cardBg,
@@ -275,7 +277,9 @@ class LiveReadingRoomWidget extends StatelessWidget {
                                 ),
                               ),
                               child: Text(
-                                '${readers.length} currently reading',
+                                readers.length == 1
+                                    ? '1 currently reading'
+                                    : '${readers.length} currently reading',
                                 style: GoogleFonts.dmMono(
                                   fontSize: 10.5,
                                   fontWeight: FontWeight.w600,
@@ -350,7 +354,9 @@ class LiveReadingRoomWidget extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'No co-readers currently in an active session. Tap "Read" to start reading!',
+                          showStartButton
+                              ? 'No co-readers currently in an active session. Tap "Read" to start reading!'
+                              : 'No other readers active right now. Start the timer to lead the circle!',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,

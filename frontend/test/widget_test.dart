@@ -60,6 +60,8 @@ void main() {
 
     expect(find.text('A moment to read'), findsOneWidget);
     expect(find.text('One page. One breath. At your pace.'), findsOneWidget);
+    expect(find.text('0 reading right now'), findsOneWidget);
+    expect(find.text('Live Reading Room'), findsOneWidget);
     expect(find.text('Before the coffee gets cold'), findsNWidgets(2));
     expect(find.text('Start session'), findsOneWidget);
     expect(find.text('Finish & save'), findsOneWidget);

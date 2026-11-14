@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../leaderboard/data/reading_session_store.dart';
+import '../data/book_of_the_week.dart';
 import '../data/open_library_service.dart';
 import '../domain/explore_category.dart';
 import 'widgets/book_cover_image.dart';
@@ -736,108 +737,156 @@ class _ExploreScreenState extends State<ExploreScreen> {
     Color dividerColor,
     Color primaryColor,
   ) {
-    const spotlightTitle = 'Before the coffee gets cold';
-    const spotlightAuthor = 'Toshikazu Kawaguchi';
-    const spotlightCover =
-        'https://covers.openlibrary.org/b/id/9255566-L.jpg';
+    final book = getBookOfTheWeek();
+    final daysRemaining = getDaysRemainingInWeek();
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: dividerColor),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Cover Thumbnail
-          SizedBox(
-            width: 72,
-            child: BookCoverImage(
-              title: spotlightTitle,
-              author: spotlightAuthor,
-              coverUrl: spotlightCover,
+    final spotlightBook = OpenLibraryBook(
+      id: book.workKey ?? book.id,
+      title: book.title,
+      author: book.author,
+      firstPublishYear: book.firstPublishYear,
+      coverImageUrl: book.coverImageUrl,
+      coverThumbnailUrl: book.coverImageUrl,
+      workKey: book.workKey,
+      description: book.description,
+      subjects: [book.category, book.categoryLabel],
+    );
+
+    return InkWell(
+      onTap: () => _handleBookSelected(spotlightBook),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: dividerColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
-          ),
-          const SizedBox(width: 14),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover Thumbnail
+            SizedBox(
+              width: 76,
+              height: 112,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: BookCoverImage(
+                  title: book.title,
+                  author: book.author,
+                  coverUrl: book.coverImageUrl,
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
 
-          // Details & Action
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.auto_awesome_rounded, size: 14, color: primaryColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      'BOOK OF THE WEEK',
-                      style: GoogleFonts.spaceMono(
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                        color: primaryColor,
+            // Details & Action
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.auto_awesome_rounded, size: 14, color: primaryColor),
+                          const SizedBox(width: 4),
+                          Text(
+                            'BOOK OF THE WEEK',
+                            style: GoogleFonts.spaceMono(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          '$daysRemaining days left',
+                          style: GoogleFonts.spaceMono(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${book.firstPublishYear} · ${book.categoryLabel}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    book.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.cormorantGaramond(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                      color: textPrimary,
+                    ),
+                  ),
+                  Text(
+                    'by ${book.author}',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      color: textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Quick Timer Button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      ReadingSessionStore.instance.selectBookForTimer(
+                        book.title,
+                        book.author,
+                        coverUrl: book.coverImageUrl,
+                      );
+                    },
+                    icon: const Icon(Icons.timer_outlined, size: 14),
+                    label: const Text('Start Timer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      textStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  spotlightTitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.cormorantGaramond(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    height: 1.15,
-                    color: textPrimary,
                   ),
-                ),
-                Text(
-                  spotlightAuthor,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    color: textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Quick Timer Button
-                ElevatedButton.icon(
-                  onPressed: () {
-                    ReadingSessionStore.instance.selectBookForTimer(
-                      spotlightTitle,
-                      spotlightAuthor,
-                      coverUrl: spotlightCover,
-                    );
-                  },
-                  icon: const Icon(Icons.timer_outlined, size: 14),
-                  label: const Text('Start Timer'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    textStyle: GoogleFonts.plusJakartaSans(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

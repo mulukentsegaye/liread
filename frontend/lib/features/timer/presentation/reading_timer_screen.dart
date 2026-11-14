@@ -2,10 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/services/co_reading_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../leaderboard/data/reading_session_store.dart';
+import 'widgets/live_co_readers_widget.dart';
 
 /// Distraction-free Reading Timer screen ("A moment to read").
 class ReadingTimerScreen extends StatefulWidget {
@@ -42,6 +44,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
   @override
   void initState() {
     super.initState();
+    CoReadingService.instance.initChannel();
     ReadingSessionStore.instance.selectedBookForTimer
         .addListener(_onExternalBookSelected);
   }
@@ -54,12 +57,22 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
         _currentBook = bookData['title'] ?? _currentBook;
         _currentAuthor = bookData['author'] ?? _currentAuthor;
       });
+      if (_isRunning) {
+        CoReadingService.instance.track(
+          bookTitle: _currentBook,
+          bookAuthor: _currentAuthor,
+          startedAt: DateTime.now().millisecondsSinceEpoch - (_secondsElapsed * 1000),
+        );
+      }
       ReadingSessionStore.instance.selectedBookForTimer.value = null;
     }
   }
 
   @override
   void dispose() {
+    if (_isRunning) {
+      CoReadingService.instance.untrack();
+    }
     ReadingSessionStore.instance.selectedBookForTimer
         .removeListener(_onExternalBookSelected);
     _timer?.cancel();
@@ -71,8 +84,14 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
       if (_isRunning) {
         _timer?.cancel();
         _isRunning = false;
+        CoReadingService.instance.untrack();
       } else {
         _isRunning = true;
+        CoReadingService.instance.track(
+          bookTitle: _currentBook,
+          bookAuthor: _currentAuthor,
+          startedAt: DateTime.now().millisecondsSinceEpoch - (_secondsElapsed * 1000),
+        );
         _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
           if (mounted) {
             setState(() {
@@ -136,6 +155,8 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
               ),
               onPressed: () {
                 Navigator.of(ctx).pop();
+                _timer?.cancel();
+                CoReadingService.instance.untrack();
                 // Add to local reactive store
                 ReadingSessionStore.instance.recordSession(
                   bookTitle: _currentBook,
@@ -385,6 +406,13 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                           _currentBook = bTitle;
                           _currentAuthor = bAuthor;
                         });
+                        if (_isRunning) {
+                          CoReadingService.instance.track(
+                            bookTitle: _currentBook,
+                            bookAuthor: _currentAuthor,
+                            startedAt: DateTime.now().millisecondsSinceEpoch - (_secondsElapsed * 1000),
+                          );
+                        }
                         Navigator.of(sheetCtx).pop();
                       },
                     );
@@ -436,6 +464,13 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                           _currentBook = t;
                           _currentAuthor = a.isNotEmpty ? a : 'Author';
                         });
+                        if (_isRunning) {
+                          CoReadingService.instance.track(
+                            bookTitle: _currentBook,
+                            bookAuthor: _currentAuthor,
+                            startedAt: DateTime.now().millisecondsSinceEpoch - (_secondsElapsed * 1000),
+                          );
+                        }
                       }
                       Navigator.of(sheetCtx).pop();
                     },
@@ -479,7 +514,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // ── Header ─────────────────────────────────────
+              // ── Header & Active Readers Count ─────────────
               Align(
                 alignment: Alignment.centerLeft,
                 child: Column(
@@ -493,6 +528,73 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                     Text(
                       'One page. One breath. At your pace.',
                       style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    ValueListenableBuilder<List<LiveCoReader>>(
+                      valueListenable: CoReadingService.instance.activeCoReaders,
+                      builder: (context, readers, _) {
+                        final count = readers.length;
+                        final hasActive = count > 0;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: hasActive
+                                ? const Color(0xFF10B981)
+                                    .withValues(alpha: 0.12)
+                                : (isDark
+                                    ? AppColors.darkDivider.withValues(alpha: 0.5)
+                                    : AppColors.divider.withValues(alpha: 0.5)),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: hasActive
+                                  ? const Color(0xFF10B981)
+                                      .withValues(alpha: 0.3)
+                                  : Colors.transparent,
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: hasActive
+                                      ? const Color(0xFF10B981)
+                                      : AppColors.textTertiary,
+                                  shape: BoxShape.circle,
+                                  boxShadow: hasActive
+                                      ? const [
+                                          BoxShadow(
+                                            color: Color(0x6610B981),
+                                            blurRadius: 6,
+                                            spreadRadius: 1.5,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                count == 0
+                                    ? '0 reading right now'
+                                    : count == 1
+                                        ? '1 person reading right now'
+                                        : '$count people reading right now',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: hasActive
+                                      ? const Color(0xFF059669)
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -771,6 +873,14 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                   ],
                 ),
               ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Live Co-Reading Room Widget ────────────────
+              const LiveReadingRoomWidget(
+                showStartButton: false,
+                margin: EdgeInsets.zero,
               ),
 
               const SizedBox(height: 24),

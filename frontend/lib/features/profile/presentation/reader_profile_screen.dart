@@ -4,7 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../analytics/presentation/reading_journey_screen.dart';
+import '../../leaderboard/data/reading_session_store.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
+import '../../settings/presentation/settings_screen.dart';
 
 /// Real Reader Profile & Sanctuary Shelf screen.
 /// Connected to Supabase Auth and database tables (profiles, bookshelf, saved_posts).
@@ -284,9 +287,21 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                           ),
                         ],
                       ),
-                      // Theme Switcher & Sign Out
+                      // Settings, Theme Switcher & Sign Out
                       Row(
                         children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.settings_outlined,
+                              color: AppColors.primary,
+                            ),
+                            tooltip: 'Settings',
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                              ).then((_) => _loadProfileData());
+                            },
+                          ),
                           IconButton(
                             icon: Icon(
                               isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
@@ -459,12 +474,20 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                         const SizedBox(height: 16),
                         const Divider(height: 1, color: AppColors.divider),
                         const SizedBox(height: 14),
-                        // Real Stats Row
+                        // Real Stats Row (tappable to view detailed Journey)
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildStatColumn('${_totalMinutesRead}m', 'Total read'),
-                            _buildStatColumn('${_currentStreak}d', 'Streak'),
+                            _buildStatColumn('${_totalMinutesRead}m', 'Total read', onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ReadingJourneyScreen()),
+                              );
+                            }),
+                            _buildStatColumn('${_currentStreak}d', 'Streak', onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const ReadingJourneyScreen()),
+                              );
+                            }),
                             _buildStatColumn('${_bookshelfItems.length}', 'On shelf'),
                             _buildStatColumn('$_dailyGoalMinutes m', 'Daily goal', onTap: _showGoalAdjustDialog),
                           ],
@@ -543,7 +566,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
   Widget _buildBookshelfTab(Color cardBg) {
     if (_bookshelfItems.isEmpty) {
       return ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
         children: [
           Icon(Icons.library_books_rounded, size: 40, color: AppColors.primary.withValues(alpha: 0.3)),
           const SizedBox(height: 12),
@@ -554,9 +577,22 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           ),
           const SizedBox(height: 6),
           const Text(
-            'Add books from the focus timer or discover classics in your circle.',
+            'Explore millions of titles in Open Library and add books to your shelf or timer.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 18),
+          Center(
+            child: FilledButton.icon(
+              onPressed: () => ReadingSessionStore.instance.navigateToTab(1), // Explore tab
+              icon: const Icon(Icons.search_rounded, size: 16),
+              label: const Text('Discover & Add Books'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ),
         ],
       );
@@ -652,6 +688,39 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                       ],
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  ReadingSessionStore.instance.selectBookForTimer(
+                    title,
+                    author,
+                    coverUrl: book['cover_image_url']?.toString(),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.timer_outlined, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Read',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

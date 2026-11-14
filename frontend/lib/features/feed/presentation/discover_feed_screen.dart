@@ -3,6 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../leaderboard/presentation/leaderboard_screen.dart';
+import '../../settings/presentation/settings_screen.dart';
+import '../../timer/presentation/widgets/live_co_readers_widget.dart';
 import '../domain/comment_model.dart';
 import '../domain/post_model.dart';
 import 'widgets/book_recommendation_card.dart';
@@ -368,110 +371,135 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: RefreshIndicator(
-        onRefresh: _fetchLivePosts,
-        color: AppColors.primary,
-        child: CustomScrollView(
-          slivers: [
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
             // ── Header ───────────────────────────────────────
-            SliverToBoxAdapter(child: _buildHeader(context)),
+            _buildHeader(context),
 
             // ── Tab bar ──────────────────────────────────────
-            SliverToBoxAdapter(child: _buildTabBar(context)),
+            _buildTabBar(context),
 
             // ── Divider ──────────────────────────────────────
-            const SliverToBoxAdapter(
-              child: Divider(height: 1, color: AppColors.divider),
-            ),
+            const Divider(height: 1, color: AppColors.divider),
 
-            // ── Feed list / Empty state ──────────────────────
-            if (_isLoading)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.all(40),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  ),
-                ),
-              )
-            else if (_posts.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 60),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.format_quote_rounded,
-                          size: 36,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'Your feed is quiet',
-                        style: GoogleFonts.newsreader(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Be the first reader to share a resonant passage or recommend a book to your circle.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: 1.5,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        onPressed: _showCreatePostModal,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Share a passage'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final post = _posts[index];
-                    return _FeedPostItem(
-                      post: post,
-                      onLike: () => _toggleLike(index),
-                      onBookmark: () => _toggleBookmark(index),
-                      onComment: () => _showCommentsSheet(post, index),
-                    );
-                  },
-                  childCount: _posts.length,
-                ),
+            // ── Tab Views ────────────────────────────────────
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  // Tab 0: Community Feed with Live Co-Reading banner
+                  _buildCommunityFeedTab(),
+
+                  // Tab 1: Reading Circle Leaderboard
+                  const LeaderboardScreen(showHeader: false),
+                ],
               ),
-
-            // Bottom padding for nav bar
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCommunityFeedTab() {
+    return RefreshIndicator(
+      onRefresh: _fetchLivePosts,
+      color: AppColors.primary,
+      child: CustomScrollView(
+        slivers: [
+          // ── Live Co-Reading Feed Banner ──────────────────
+          const SliverToBoxAdapter(
+            child: LiveCoReadingFeedBanner(),
+          ),
+
+          // ── Feed list / Empty state ──────────────────────
+          if (_isLoading)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primary,
+                    strokeWidth: 2.5,
+                  ),
+                ),
+              ),
+            )
+          else if (_posts.isEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.format_quote_rounded,
+                        size: 36,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Your feed is quiet',
+                      style: GoogleFonts.newsreader(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Be the first reader to share a resonant passage or recommend a book to your circle.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        height: 1.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: _showCreatePostModal,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Share a passage'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final post = _posts[index];
+                  return _FeedPostItem(
+                    post: post,
+                    onLike: () => _toggleLike(index),
+                    onBookmark: () => _toggleBookmark(index),
+                    onComment: () => _showCommentsSheet(post, index),
+                  );
+                },
+                childCount: _posts.length,
+              ),
+            ),
+
+          // Bottom padding
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+        ],
       ),
     );
   }
@@ -481,7 +509,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
@@ -499,12 +527,12 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
 
-          // Create-post FAB
+          // Settings gear icon
           Container(
-            width: 42,
-            height: 42,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(
@@ -513,13 +541,39 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               ),
             ),
             child: IconButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                );
+              },
+              padding: EdgeInsets.zero,
+              icon: const Icon(
+                Icons.settings_outlined,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              tooltip: 'Settings',
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Create-post FAB
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
               onPressed: _showCreatePostModal,
               padding: EdgeInsets.zero,
               icon: const Icon(
                 Icons.add,
-                color: AppColors.primary,
+                color: Colors.white,
                 size: 22,
               ),
+              tooltip: 'Share a passage',
             ),
           ),
         ],
@@ -539,7 +593,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               controller: _tabController,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
-              labelColor: AppColors.textPrimary,
+              labelColor: AppColors.primary,
               unselectedLabelColor: AppColors.tabInactive,
               indicatorColor: AppColors.primary,
               indicatorWeight: 2.5,
@@ -549,7 +603,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               overlayColor: WidgetStateProperty.all(Colors.transparent),
               labelStyle: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
               ),
               unselectedLabelStyle: GoogleFonts.plusJakartaSans(
                 fontSize: 14,
@@ -558,22 +612,22 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
               labelPadding: const EdgeInsets.only(right: 24),
               padding: EdgeInsets.zero,
               tabs: const [
-                Tab(text: 'For you'),
-                Tab(text: 'Following'),
+                Tab(text: 'Community Feed'),
+                Tab(text: 'Reading Circle'),
               ],
             ),
           ),
 
-          // "FOLIO" trailing label
+          // "LIREAD" trailing label
           Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
-              'FOLIO',
+              'LIREAD',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
-                color: AppColors.textTertiary,
+                color: AppColors.primary,
               ),
             ),
           ),

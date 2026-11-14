@@ -33,7 +33,7 @@ void main() {
     expect(find.text('Password'), findsOneWidget);
   });
 
-  testWidgets('App renders Feed, Explore, Read timer with theme switching, Journey, Ranks, and Profile tabs', (WidgetTester tester) async {
+  testWidgets('App renders consolidated 4 tabs: Feed (with Live banner & Reading Circle), Explore, Read timer, and Profile', (WidgetTester tester) async {
     ReadingSessionStore.instance.reset();
     AppThemeController.instance.resetForTesting();
     await tester.pumpWidget(const LireadApp(homeOverride: MainNavigationShell()));
@@ -43,25 +43,49 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
-    // 1. Verify the Feed header renders
+    // 1. Verify the Feed header and brand render
     expect(find.text('Between pages'), findsOneWidget);
+    expect(find.text('LIREAD'), findsOneWidget);
+    expect(find.text('Community Feed'), findsOneWidget);
+    expect(find.text('Reading Circle'), findsOneWidget);
 
-    // Verify all 6 bottom navigation tabs exist
+    // Verify Live Co-Reading banner on Feed
+    expect(find.text('Live Co-Reading'), findsOneWidget);
+
+    // Verify Settings icon in header
+    expect(find.byIcon(Icons.settings_outlined), findsWidgets);
+
+    // Verify the 4 bottom navigation tabs exist
     expect(find.text('Feed'), findsOneWidget);
     expect(find.text('Explore'), findsOneWidget);
     expect(find.text('Read'), findsOneWidget);
-    expect(find.text('Journey'), findsOneWidget);
-    expect(find.text('Ranks'), findsOneWidget);
     expect(find.text('Profile'), findsOneWidget);
 
-    // 2. Tap on the 'Read' tab
+    // 2. Switch to Reading Circle tab inside Feed
+    await tester.tap(find.text('Reading Circle'));
+    await settle();
+
+    // Verify Leaderboard rendered inside Reading Circle tab
+    expect(find.text('Daily rank'), findsOneWidget);
+    expect(find.text('Weekly rank'), findsOneWidget);
+    expect(find.text('Yearly rank'), findsOneWidget);
+    expect(find.text('YOUR STANDING'), findsOneWidget);
+
+    // Switch between Weekly rank and Yearly rank
+    await tester.tap(find.text('Weekly rank'));
+    await settle();
+    expect(find.text('This week'), findsWidgets);
+
+    await tester.tap(find.text('Yearly rank'));
+    await settle();
+    expect(find.text('This year'), findsWidgets);
+
+    // 3. Tap on the 'Read' tab
     await tester.tap(find.text('Read'));
     await settle();
 
     expect(find.text('A moment to read'), findsOneWidget);
     expect(find.text('One page. One breath. At your pace.'), findsOneWidget);
-    expect(find.text('0 reading right now'), findsOneWidget);
-    expect(find.text('Live Reading Room'), findsOneWidget);
     expect(find.text('Before the coffee gets cold'), findsNWidgets(2));
     expect(find.text('Start session'), findsOneWidget);
     expect(find.text('Finish & save'), findsOneWidget);
@@ -106,40 +130,16 @@ void main() {
     expect(find.text('Theme: Obsidian Ember'), findsOneWidget);
     expect(find.text('And Pages'), findsOneWidget);
 
-    // 4. Tap on the 'Journey' tab
-    await tester.tap(find.text('Journey'));
+    // 4. Tap on the 'Explore' tab
+    await tester.tap(find.text('Explore'));
     await settle();
 
-    expect(find.text('Your journey'), findsOneWidget);
-    expect(find.text('Small moments. Meaningful progress.'), findsOneWidget);
-    expect(find.text('Books finished'), findsOneWidget);
-    expect(find.text('Time well spent'), findsOneWidget);
-    expect(find.text('A steady rhythm'), findsOneWidget);
-    expect(find.text('7-day reading streak'), findsOneWidget);
-    expect(find.text('Thoughtful reader'), findsOneWidget);
+    expect(find.text('Explore'), findsWidgets);
+    expect(find.text('Search Open Library & curated bookshelves'), findsOneWidget);
+    expect(find.text('Search title, author, or subject...'), findsOneWidget);
+    expect(find.text('BOOK OF THE WEEK'), findsOneWidget);
 
-    // 5. Tap on the 'Ranks' tab (Leaderboard)
-    await tester.tap(find.text('Ranks'));
-    await settle();
-
-    expect(find.text('Reading circle'), findsOneWidget);
-    expect(find.text('Every page counts. Inspired together.'), findsOneWidget);
-    expect(find.text('Daily rank'), findsOneWidget);
-    expect(find.text('Weekly rank'), findsOneWidget);
-    expect(find.text('Yearly rank'), findsOneWidget);
-    expect(find.text('YOUR STANDING'), findsOneWidget);
-    expect(find.text('All readers'), findsOneWidget);
-
-    // Switch between Weekly rank and Yearly rank
-    await tester.tap(find.text('Weekly rank'));
-    await settle();
-    expect(find.text('This week'), findsWidgets);
-
-    await tester.tap(find.text('Yearly rank'));
-    await settle();
-    expect(find.text('This year'), findsWidgets);
-
-    // 6. Tap on the 'Profile' tab
+    // 5. Tap on the 'Profile' tab
     await tester.tap(find.text('Profile'));
     await settle();
 
@@ -149,15 +149,6 @@ void main() {
     expect(find.text('On my shelf'), findsOneWidget);
     expect(find.text('Saved passages'), findsOneWidget);
     expect(find.text('My reading circles'), findsOneWidget);
-
-    // 7. Tap on the 'Explore' tab
-    await tester.tap(find.text('Explore'));
-    await settle();
-
-    expect(find.text('Explore'), findsWidgets);
-    expect(find.text('Search Open Library & curated bookshelves'), findsOneWidget);
-    expect(find.text('Search title, author, or subject...'), findsOneWidget);
-    expect(find.text('BOOK OF THE WEEK'), findsOneWidget);
   });
 
   testWidgets('BookDetailsSheet renders Direct Download and Telegram Bot sections', (WidgetTester tester) async {

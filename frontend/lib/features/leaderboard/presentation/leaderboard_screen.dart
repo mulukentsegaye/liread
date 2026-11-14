@@ -9,7 +9,12 @@ import '../domain/leaderboard_models.dart';
 /// Community Leaderboard & Reading Circle screen ("Reading circle").
 /// Connected to live Supabase community leaderboard metrics.
 class LeaderboardScreen extends StatefulWidget {
-  const LeaderboardScreen({super.key});
+  final bool showHeader;
+
+  const LeaderboardScreen({
+    super.key,
+    this.showHeader = true,
+  });
 
   @override
   State<LeaderboardScreen> createState() => _LeaderboardScreenState();
@@ -50,6 +55,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        top: widget.showHeader,
+        bottom: false,
         child: ListenableBuilder(
           listenable: ReadingSessionStore.instance,
           builder: (context, _) {
@@ -73,25 +80,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               child: CustomScrollView(
                 slivers: [
                   // ── Header ─────────────────────────────────────
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Reading circle',
-                            style: Theme.of(context).textTheme.headlineLarge,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Every page counts. Inspired together.',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
+                  if (widget.showHeader)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Reading circle',
+                              style: Theme.of(context).textTheme.headlineLarge,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Every page counts. Inspired together.',
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
 
                   // ── Period Selector Tabs ───────────────────────
                   SliverToBoxAdapter(

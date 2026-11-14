@@ -29,7 +29,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   String _selectedSoundscape = 'Rain on Leaves';
 
-  bool _isLoading = true;
   bool _isSaving = false;
   String? _statusMessage;
   bool _statusIsSuccess = true;
@@ -47,6 +46,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController.text = 'Reader';
+    _usernameController.text = 'reader';
+    _bioController.text = 'Mindful reader cultivating daily habits.';
     _loadSettings();
   }
 
@@ -79,7 +81,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isPrivateProfile = prefs.getBool('liread_private_profile') ?? false;
         _notificationsEnabled = prefs.getBool('liread_notifications') ?? true;
         _selectedSoundscape = prefs.getString('liread_default_soundscape') ?? 'Rain on Leaves';
-        _isLoading = false;
       });
     }
   }
@@ -222,9 +223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
+      body: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

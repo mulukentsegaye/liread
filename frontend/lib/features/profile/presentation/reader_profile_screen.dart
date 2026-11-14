@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 
 /// Real Reader Profile & Sanctuary Shelf screen.

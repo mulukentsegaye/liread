@@ -64,6 +64,20 @@ class EbookDownloadService {
       );
     }
 
+    // On Web, browsers trigger download via external URL directly
+    if (kIsWeb) {
+      try {
+        final uri = Uri.parse(downloadUrl);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return const DownloadResult(
+          success: true,
+          message: 'Download initiated in browser.',
+        );
+      } catch (e) {
+        return DownloadResult(success: false, message: 'Browser download failed: $e');
+      }
+    }
+
     try {
       final uri = Uri.parse(downloadUrl);
       final client = http.Client();
@@ -118,6 +132,7 @@ class EbookDownloadService {
   /// Launch external viewer or file explorer for the downloaded book.
   Future<bool> openDownloadedBook(String filePath) async {
     try {
+      if (kIsWeb) return false;
       final uri = Uri.file(filePath);
       return await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {

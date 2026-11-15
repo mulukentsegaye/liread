@@ -795,20 +795,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.auto_awesome_rounded, size: 14, color: primaryColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            'BOOK OF THE WEEK',
-                            style: GoogleFonts.spaceMono(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                              color: primaryColor,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'BOOK OF THE WEEK',
+                        style: GoogleFonts.spaceMono(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                          color: primaryColor,
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),

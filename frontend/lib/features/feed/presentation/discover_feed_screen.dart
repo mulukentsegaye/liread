@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/reader_avatar.dart';
 import '../../leaderboard/presentation/leaderboard_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../timer/presentation/widgets/live_co_readers_widget.dart';
@@ -662,6 +663,7 @@ class _FeedPostItem extends StatelessWidget {
           FeedPostHeader(
             userName: post.userName,
             userInitials: post.userInitials,
+            avatarUrl: post.avatarUrl,
             actionText: post.actionText,
             timeAgo: post.timeAgo,
           ),
@@ -912,18 +914,11 @@ class _RealCommentsBottomSheetState extends State<_RealCommentsBottomSheet> {
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              CircleAvatar(
+                              ReaderAvatar(
+                                avatarUrl: c.avatarUrl,
+                                name: c.authorName,
+                                initials: c.initials,
                                 radius: 16,
-                                backgroundColor:
-                                    AppColors.primary.withValues(alpha: 0.15),
-                                child: Text(
-                                  c.initials,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(

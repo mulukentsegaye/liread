@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/services/co_reading_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/reader_avatar.dart';
 import '../../../leaderboard/data/reading_session_store.dart';
 
 /// Horizontal banner displayed on the Discover Feed (Home Page) showing
@@ -426,20 +427,12 @@ class _ReaderPillCard extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              if (reader.avatarUrl != null &&
-                  reader.avatarUrl!.trim().isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
-                  child: Image.network(
-                    reader.avatarUrl!,
-                    width: 36,
-                    height: 36,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => _buildInitials(),
-                  ),
-                )
-              else
-                _buildInitials(),
+              ReaderAvatar(
+                avatarUrl: reader.avatarUrl,
+                name: reader.fullName,
+                initials: reader.initials,
+                radius: 18,
+              ),
               Positioned(
                 bottom: -1,
                 right: -1,
@@ -526,27 +519,6 @@ class _ReaderPillCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildInitials() {
-    return Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Center(
-        child: Text(
-          reader.initials,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-          ),
-        ),
       ),
     );
   }

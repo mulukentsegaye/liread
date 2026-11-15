@@ -23,6 +23,7 @@ class LeaderboardEntry {
   final String name;
   final String handle;
   final String initials;
+  final String? avatarUrl;
   final String currentBook;
   final String rankTier;
   final int streakDays;
@@ -36,6 +37,7 @@ class LeaderboardEntry {
     required this.name,
     required this.handle,
     required this.initials,
+    this.avatarUrl,
     required this.currentBook,
     required this.rankTier,
     required this.streakDays,
@@ -51,6 +53,7 @@ class LeaderboardEntry {
       name: name,
       handle: handle,
       initials: initials,
+      avatarUrl: avatarUrl,
       currentBook: updatedBook ?? currentBook,
       rankTier: rankTier,
       streakDays: streakDays,

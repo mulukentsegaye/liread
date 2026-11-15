@@ -6,6 +6,7 @@ class FeedPost {
   final String id;
   final String userName;
   final String userInitials;
+  final String? avatarUrl;
   final String actionText;
   final String timeAgo;
   final PostType type;
@@ -20,6 +21,7 @@ class FeedPost {
     required this.id,
     required this.userName,
     required this.userInitials,
+    this.avatarUrl,
     required this.actionText,
     required this.timeAgo,
     required this.type,

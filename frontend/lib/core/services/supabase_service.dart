@@ -206,17 +206,20 @@ class SupabaseService {
     String? fullName,
     String? bio,
     int? dailyGoalMinutes,
+    String? avatarUrl,
   }) async {
     if (_isGuest) {
       if (_currentProfile != null) {
         if (fullName != null) _currentProfile!['full_name'] = fullName;
         if (bio != null) _currentProfile!['bio'] = bio;
         if (dailyGoalMinutes != null) _currentProfile!['daily_goal_minutes'] = dailyGoalMinutes;
+        if (avatarUrl != null) _currentProfile!['avatar_url'] = avatarUrl;
       }
       try {
         final prefs = await SharedPreferences.getInstance();
         if (fullName != null) await prefs.setString('liread_guest_name', fullName);
         if (dailyGoalMinutes != null) await prefs.setInt('liread_guest_goal', dailyGoalMinutes);
+        if (avatarUrl != null) await prefs.setString('liread_guest_avatar', avatarUrl);
       } catch (_) {}
       return;
     }
@@ -227,6 +230,9 @@ class SupabaseService {
     if (bio != null) updates['bio'] = bio;
     if (dailyGoalMinutes != null) {
       updates['daily_goal_minutes'] = dailyGoalMinutes;
+    }
+    if (avatarUrl != null) {
+      updates['avatar_url'] = avatarUrl;
     }
     updates['updated_at'] = DateTime.now().toIso8601String();
 
@@ -434,6 +440,7 @@ class SupabaseService {
         id: item['id'].toString(),
         userName: authorName,
         userInitials: initials.isEmpty ? 'R' : initials,
+        avatarUrl: profile?['avatar_url'] as String?,
         actionText: postTypeStr == 'finished_book'
             ? 'Finished a book'
             : (isRecommendation ? 'Recommended a book' : 'Saved a passage'),
@@ -777,6 +784,7 @@ class SupabaseService {
             name: name,
             handle: handle,
             initials: initials.isEmpty ? 'R' : initials,
+            avatarUrl: item['avatar_url'] as String?,
             currentBook: 'Active Reader',
             rankTier: item['rank_tier'] ?? 'Novice Reader',
             streakDays: 1,
@@ -810,6 +818,7 @@ class SupabaseService {
           name: name,
           handle: handle,
           initials: initials.isEmpty ? 'R' : initials,
+          avatarUrl: p['avatar_url'] as String?,
           currentBook: 'Active Reader',
           rankTier: p['rank_tier'] ?? 'Novice Reader',
           streakDays: (p['current_streak'] as num?)?.toInt() ?? 0,

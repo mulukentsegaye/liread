@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/reader_avatar.dart';
 import '../data/reading_session_store.dart';
 import '../domain/leaderboard_models.dart';
 
@@ -416,18 +417,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           ),
           const SizedBox(width: 10),
 
-          // Initials Avatar
-          CircleAvatar(
+          // Avatar
+          ReaderAvatar(
+            avatarUrl: entry.avatarUrl,
+            name: entry.name,
+            initials: entry.initials,
             radius: 18,
-            backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-            child: Text(
-              entry.initials,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
           ),
           const SizedBox(width: 12),
 

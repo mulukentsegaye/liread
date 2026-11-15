@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/widgets/reader_avatar.dart';
 import '../../analytics/presentation/reading_journey_screen.dart';
 import '../../leaderboard/data/reading_session_store.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
@@ -26,6 +27,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
   String _handle = '@reader';
   String _bio = 'Mindful reader cultivating daily habits.';
   String _rankTier = 'Novice Reader';
+  String? _avatarUrl;
   int _dailyGoalMinutes = 60;
   int _totalMinutesRead = 0;
   int _currentStreak = 0;
@@ -58,10 +60,12 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           _dailyGoalMinutes = (profile['daily_goal_minutes'] as num?)?.toInt() ?? _dailyGoalMinutes;
           _totalMinutesRead = (profile['total_minutes_read'] as num?)?.toInt() ?? _totalMinutesRead;
           _currentStreak = (profile['current_streak'] as num?)?.toInt() ?? _currentStreak;
+          _avatarUrl = profile['avatar_url'] as String?;
         } else if (SupabaseService.instance.isGuest) {
           _fullName = 'Guest Reader';
           _handle = '@guest';
           _bio = 'Exploring LiRead sanctuary as a guest.';
+          _avatarUrl = null;
         }
       });
     }
@@ -91,6 +95,7 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
   void _showEditProfileDialog() {
     final nameCtrl = TextEditingController(text: _fullName);
     final bioCtrl = TextEditingController(text: _bio);
+    final avatarCtrl = TextEditingController(text: _avatarUrl ?? '');
 
     showDialog<void>(
       context: context,
@@ -98,26 +103,37 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text('Edit Profile'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Full Name',
-                  border: OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: bioCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Bio',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: bioCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Bio',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                TextField(
+                  controller: avatarCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Avatar Image URL',
+                    hintText: 'https://... or data:image/...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -131,14 +147,17 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
               onPressed: () async {
                 final newName = nameCtrl.text.trim();
                 final newBio = bioCtrl.text.trim();
+                final newAvatar = avatarCtrl.text.trim();
                 if (newName.isNotEmpty) {
                   setState(() {
                     _fullName = newName;
                     _bio = newBio;
+                    _avatarUrl = newAvatar.isNotEmpty ? newAvatar : null;
                   });
                   await SupabaseService.instance.updateProfile(
                     fullName: newName,
                     bio: newBio,
+                    avatarUrl: newAvatar.isNotEmpty ? newAvatar : null,
                   );
                 }
                 if (ctx.mounted) Navigator.of(ctx).pop();
@@ -393,18 +412,11 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                       children: [
                         Row(
                           children: [
-                            // Avatar with Initials
-                            CircleAvatar(
+                            // Avatar
+                            ReaderAvatar(
+                              avatarUrl: _avatarUrl,
+                              name: _fullName,
                               radius: 30,
-                              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                              child: Text(
-                                _fullName.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase(),
-                                style: GoogleFonts.newsreader(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primary,
-                                ),
-                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(

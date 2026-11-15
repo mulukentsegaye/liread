@@ -139,11 +139,13 @@ class ReadingSessionStore extends ChangeNotifier {
       final initials = name.toString().trim().split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join('').toUpperCase();
       final streak = (profile['current_streak'] as num?)?.toInt() ?? old.streakDays;
       final tier = profile['rank_tier']?.toString() ?? old.rankTier;
+      final avatarUrl = profile['avatar_url'] as String? ?? old.avatarUrl;
 
       if (old.name == name.toString() &&
           old.handle == handle &&
           old.streakDays == streak &&
-          old.rankTier == tier) {
+          old.rankTier == tier &&
+          old.avatarUrl == avatarUrl) {
         return;
       }
 
@@ -152,6 +154,7 @@ class ReadingSessionStore extends ChangeNotifier {
         name: name.toString(),
         handle: handle,
         initials: initials.isNotEmpty ? initials : old.initials,
+        avatarUrl: avatarUrl,
         currentBook: old.currentBook,
         rankTier: tier,
         streakDays: streak,

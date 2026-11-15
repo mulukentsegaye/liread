@@ -1,20 +1,18 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/reader_avatar.dart';
 import '../../leaderboard/presentation/leaderboard_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
 import '../../timer/presentation/widgets/live_co_readers_widget.dart';
-import '../domain/comment_model.dart';
 import '../domain/post_model.dart';
 import 'widgets/book_recommendation_card.dart';
 import 'widgets/feed_post_header.dart';
 import 'widgets/post_actions_bar.dart';
 import 'widgets/quote_card.dart';
 
-/// The main Discover Feed screen — "Between pages".
+/// The main Discover Feed screen â€” "Between pages".
 /// Powered by live community posts from Supabase.
 class DiscoverFeedScreen extends StatefulWidget {
   const DiscoverFeedScreen({super.key});
@@ -105,37 +103,35 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
     SupabaseService.instance.toggleBookmark(post.id);
   }
 
-  void _showCommentsSheet(FeedPost post, int postIndex) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) {
-        return _RealCommentsBottomSheet(
-          post: post,
-          onCommentsCountChanged: (newCount) {
-            if (mounted && postIndex < _posts.length) {
-              setState(() {
-                final current = _posts[postIndex];
-                _posts[postIndex] = FeedPost(
-                  id: current.id,
-                  userName: current.userName,
-                  userInitials: current.userInitials,
-                  actionText: current.actionText,
-                  timeAgo: current.timeAgo,
-                  type: current.type,
-                  bookRecommendation: current.bookRecommendation,
-                  quotePost: current.quotePost,
-                  likes: current.likes,
-                  comments: newCount,
-                  isLiked: current.isLiked,
-                  isBookmarked: current.isBookmarked,
-                );
-              });
-            }
-          },
-        );
-      },
+  void _onCommentTapped(FeedPost post) {
+    final bookTitle = post.bookRecommendation?.bookTitle ??
+        post.quotePost?.bookTitle ??
+        'this passage';
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.forum_outlined, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Community discussion threads for "$bookTitle" are opening soon!',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -377,16 +373,16 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
         bottom: false,
         child: Column(
           children: [
-            // ── Header ───────────────────────────────────────
+            // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _buildHeader(context),
 
-            // ── Tab bar ──────────────────────────────────────
+            // â”€â”€ Tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             _buildTabBar(context),
 
-            // ── Divider ──────────────────────────────────────
+            // â”€â”€ Divider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             const Divider(height: 1, color: AppColors.divider),
 
-            // ── Tab Views ────────────────────────────────────
+            // â”€â”€ Tab Views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -411,12 +407,12 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
       color: AppColors.primary,
       child: CustomScrollView(
         slivers: [
-          // ── Live Co-Reading Feed Banner ──────────────────
+          // â”€â”€ Live Co-Reading Feed Banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           const SliverToBoxAdapter(
             child: LiveCoReadingFeedBanner(),
           ),
 
-          // ── Feed list / Empty state ──────────────────────
+          // â”€â”€ Feed list / Empty state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
           if (_isLoading)
             const SliverToBoxAdapter(
               child: Padding(
@@ -491,7 +487,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
                     post: post,
                     onLike: () => _toggleLike(index),
                     onBookmark: () => _toggleBookmark(index),
-                    onComment: () => _showCommentsSheet(post, index),
+                    onComment: () => _onCommentTapped(post),
                   );
                 },
                 childCount: _posts.length,
@@ -505,7 +501,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
     );
   }
 
-  // ── Header ─────────────────────────────────────────────────
+  // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
@@ -582,7 +578,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
     );
   }
 
-  // ── Tab bar ────────────────────────────────────────────────
+  // â”€â”€ Tab bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   Widget _buildTabBar(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
@@ -638,7 +634,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
   }
 }
 
-// ── Individual feed post ───────────────────────────────────────
+// â”€â”€ Individual feed post â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 class _FeedPostItem extends StatelessWidget {
   final FeedPost post;
   final VoidCallback onLike;
@@ -663,7 +659,6 @@ class _FeedPostItem extends StatelessWidget {
           FeedPostHeader(
             userName: post.userName,
             userInitials: post.userInitials,
-            avatarUrl: post.avatarUrl,
             actionText: post.actionText,
             timeAgo: post.timeAgo,
           ),
@@ -688,330 +683,6 @@ class _FeedPostItem extends StatelessWidget {
             onLike: onLike,
             onBookmark: onBookmark,
             onComment: onComment,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Fully interactive, real comments and community reflections bottom sheet.
-/// Loads and stores comments in Supabase `post_comments` table and local persistent cache.
-class _RealCommentsBottomSheet extends StatefulWidget {
-  final FeedPost post;
-  final ValueChanged<int>? onCommentsCountChanged;
-
-  const _RealCommentsBottomSheet({
-    required this.post,
-    this.onCommentsCountChanged,
-  });
-
-  @override
-  State<_RealCommentsBottomSheet> createState() => _RealCommentsBottomSheetState();
-}
-
-class _RealCommentsBottomSheetState extends State<_RealCommentsBottomSheet> {
-  final TextEditingController _commentCtrl = TextEditingController();
-  final ScrollController _scrollCtrl = ScrollController();
-  List<FeedComment> _comments = [];
-  bool _isLoading = true;
-  bool _isSubmitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadComments();
-  }
-
-  @override
-  void dispose() {
-    _commentCtrl.dispose();
-    _scrollCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadComments() async {
-    final list = await SupabaseService.instance.fetchPostComments(widget.post.id);
-    if (mounted) {
-      setState(() {
-        _comments = list;
-        _isLoading = false;
-      });
-      if (list.length != widget.post.comments) {
-        widget.onCommentsCountChanged?.call(list.length);
-      }
-    }
-  }
-
-  Future<void> _submitComment() async {
-    final text = _commentCtrl.text.trim();
-    if (text.isEmpty || _isSubmitting) return;
-
-    setState(() => _isSubmitting = true);
-    final created = await SupabaseService.instance.createComment(
-      postId: widget.post.id,
-      commentText: text,
-    );
-
-    if (mounted) {
-      if (created != null) {
-        setState(() {
-          _comments.add(created);
-          _commentCtrl.clear();
-          _isSubmitting = false;
-        });
-        widget.onCommentsCountChanged?.call(_comments.length);
-
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollCtrl.hasClients) {
-            _scrollCtrl.animateTo(
-              _scrollCtrl.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOut,
-            );
-          }
-        });
-      } else {
-        setState(() => _isSubmitting = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaceColor = AppColors.resolve(
-      context,
-      light: AppColors.surface,
-      dark: AppColors.darkSurface,
-    );
-
-    final titleText = widget.post.bookRecommendation?.bookTitle ??
-        widget.post.quotePost?.bookTitle ??
-        'Reading reflection';
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.75,
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 14,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        children: [
-          // Drag handle
-          Center(
-            child: Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.divider,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Header
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Thoughts & Reflections',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      titleText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close_rounded, size: 20),
-                onPressed: () => Navigator.of(context).pop(),
-                visualDensity: VisualDensity.compact,
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: AppColors.divider),
-
-          // Comments List / Empty State / Loading
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : _comments.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withValues(alpha: 0.1),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.chat_bubble_outline_rounded,
-                                  color: AppColors.primary,
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No reflections yet',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'Be the first to share your perspective on this book or quote with fellow readers.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: AppColors.textSecondary,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView.separated(
-                        controller: _scrollCtrl,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        itemCount: _comments.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 14),
-                        itemBuilder: (ctx, idx) {
-                          final c = _comments[idx];
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ReaderAvatar(
-                                avatarUrl: c.avatarUrl,
-                                name: c.authorName,
-                                initials: c.initials,
-                                radius: 16,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.resolve(
-                                      ctx,
-                                      light: const Color(0xFFF4F6F4),
-                                      dark: const Color(0xFF1E2822),
-                                    ),
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            c.authorName,
-                                            style: const TextStyle(
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          Text(
-                                            c.timeAgo,
-                                            style: const TextStyle(
-                                              fontSize: 10.5,
-                                              color: AppColors.textSecondary,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 5),
-                                      Text(
-                                        c.text,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          height: 1.4,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Input field row
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _commentCtrl,
-                  textCapitalization: TextCapitalization.sentences,
-                  minLines: 1,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: 'Share a reflection...',
-                    hintStyle: const TextStyle(fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: _isSubmitting
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : const Icon(Icons.send_rounded, color: AppColors.primary),
-                onPressed: _isSubmitting ? null : _submitComment,
-              ),
-            ],
           ),
         ],
       ),

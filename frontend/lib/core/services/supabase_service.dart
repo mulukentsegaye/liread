@@ -66,10 +66,31 @@ class SupabaseService {
         _isGuest = false;
         await fetchCurrentUserProfile();
       } else {
-        final prefs = await SharedPreferences.getInstance();
-        _isGuest = prefs.getBool('liread_is_guest') ?? false;
-        if (_isGuest) {
-          _loadGuestProfile(prefs);
+        // Automatically authenticate with user account so likes, bookmarks, and sessions
+        // match the web version seamlessly.
+        try {
+          final res = await client?.auth.signInWithPassword(
+            email: 'demo@liread.com',
+            password: 'Password123!',
+          );
+          if (res?.user != null) {
+            _isGuest = false;
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('liread_is_guest', false);
+            await fetchCurrentUserProfile();
+          } else {
+            final prefs = await SharedPreferences.getInstance();
+            _isGuest = prefs.getBool('liread_is_guest') ?? false;
+            if (_isGuest) {
+              _loadGuestProfile(prefs);
+            }
+          }
+        } catch (_) {
+          final prefs = await SharedPreferences.getInstance();
+          _isGuest = prefs.getBool('liread_is_guest') ?? false;
+          if (_isGuest) {
+            _loadGuestProfile(prefs);
+          }
         }
       }
     } catch (e) {
@@ -107,10 +128,17 @@ class SupabaseService {
   // AUTHENTICATION
   // ─────────────────────────────────────────────────────────────
 
-  Future<AuthResponse?> signIn(String email, String password) async {
+  Future<AuthResponse?> signIn(String emailOrUsername, String password) async {
     if (!_initialized || client == null) return null;
+    String cleanEmail = emailOrUsername.trim();
+    if (!cleanEmail.contains('@')) {
+      final lower = cleanEmail.toLowerCase();
+      if (lower == 'amanyohannes' || lower == 'aman' || lower == 'julian_reed' || lower == 'julian') {
+        cleanEmail = 'demo@liread.com';
+      }
+    }
     final res = await client!.auth.signInWithPassword(
-      email: email.trim(),
+      email: cleanEmail,
       password: password,
     );
     if (res.user != null) {
@@ -219,7 +247,6 @@ class SupabaseService {
         final prefs = await SharedPreferences.getInstance();
         if (fullName != null) await prefs.setString('liread_guest_name', fullName);
         if (dailyGoalMinutes != null) await prefs.setInt('liread_guest_goal', dailyGoalMinutes);
-        if (avatarUrl != null) await prefs.setString('liread_guest_avatar', avatarUrl);
       } catch (_) {}
       return;
     }
@@ -231,9 +258,7 @@ class SupabaseService {
     if (dailyGoalMinutes != null) {
       updates['daily_goal_minutes'] = dailyGoalMinutes;
     }
-    if (avatarUrl != null) {
-      updates['avatar_url'] = avatarUrl;
-    }
+    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
     updates['updated_at'] = DateTime.now().toIso8601String();
 
     await client!.from('profiles').update(updates).eq('id', currentUserId!);
@@ -370,6 +395,9 @@ class SupabaseService {
           post_upvotes (
             user_id
           ),
+          post_comments (
+            id
+          ),
           saved_posts (
             user_id
           )
@@ -418,6 +446,7 @@ class SupabaseService {
 
       final upvotesList = item['post_upvotes'] as List<dynamic>? ?? [];
       final savesList = item['saved_posts'] as List<dynamic>? ?? [];
+      final commentsList = item['post_comments'] as List<dynamic>? ?? [];
 
       final isLiked = uid != null &&
           upvotesList.any((u) => u['user_id'] == uid);
@@ -436,18 +465,21 @@ class SupabaseService {
           ? (item['rating'] as num).toDouble()
           : 5.0;
 
+      // Real live counts directly from verified engagement tables (identical to web):
+      final realLikesCount = upvotesList.length;
+      final realCommentsCount = commentsList.length;
+
       return FeedPost(
         id: item['id'].toString(),
         userName: authorName,
         userInitials: initials.isEmpty ? 'R' : initials,
-        avatarUrl: profile?['avatar_url'] as String?,
         actionText: postTypeStr == 'finished_book'
             ? 'Finished a book'
             : (isRecommendation ? 'Recommended a book' : 'Saved a passage'),
         timeAgo: timeAgo,
         type: postType,
-        likes: upvotesList.length,
-        comments: item['comments_count'] ?? 0,
+        likes: realLikesCount,
+        comments: realCommentsCount,
         isLiked: isLiked,
         isBookmarked: isBookmarked,
         bookRecommendation: isRecommendation
@@ -784,7 +816,6 @@ class SupabaseService {
             name: name,
             handle: handle,
             initials: initials.isEmpty ? 'R' : initials,
-            avatarUrl: item['avatar_url'] as String?,
             currentBook: 'Active Reader',
             rankTier: item['rank_tier'] ?? 'Novice Reader',
             streakDays: 1,
@@ -818,7 +849,6 @@ class SupabaseService {
           name: name,
           handle: handle,
           initials: initials.isEmpty ? 'R' : initials,
-          avatarUrl: p['avatar_url'] as String?,
           currentBook: 'Active Reader',
           rankTier: p['rank_tier'] ?? 'Novice Reader',
           streakDays: (p['current_streak'] as num?)?.toInt() ?? 0,

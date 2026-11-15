@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../explore/presentation/explore_screen.dart';
+import '../../explore/presentation/widgets/global_download_banner.dart';
 import '../../feed/presentation/discover_feed_screen.dart';
 import '../../leaderboard/data/reading_session_store.dart';
 import '../../profile/presentation/reader_profile_screen.dart';
@@ -76,22 +77,26 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             index: _currentIndex,
             children: _screens,
           ),
-          bottomNavigationBar: Container(
-            decoration: BoxDecoration(
-              color: navSurface,
-              border: Border(
-                top: BorderSide(
-                  color: navDivider,
-                  width: 0.5,
+          bottomNavigationBar: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const GlobalDownloadBanner(),
+              Container(
+                decoration: BoxDecoration(
+                  color: navSurface,
+                  border: Border(
+                    top: BorderSide(
+                      color: navDivider,
+                      width: 0.5,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            padding: const EdgeInsets.only(top: 6, bottom: 10),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
+                padding: const EdgeInsets.only(top: 6, bottom: 10),
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
                   _buildNavItem(
                     index: 0,
                     icon: Icons.layers_outlined,
@@ -132,7 +137,9 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
               ),
             ),
           ),
-        );
+        ],
+      ),
+    );
       },
     );
   }

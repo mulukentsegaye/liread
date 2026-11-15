@@ -59,6 +59,39 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
     _book = widget.book;
     _fetchDetails();
     _loadBotUsername();
+
+    final active = EbookDownloadService.instance.currentTask.value;
+    if (active != null && active.bookId == _book.id) {
+      if (active.isRunning) {
+        _isDownloading = true;
+        _downloadProgress = active.progress >= 0 ? active.progress : 0.0;
+      } else if (active.isCompleted) {
+        _downloadedFilePath = active.localUri ?? active.localFilePath;
+      }
+    }
+    EbookDownloadService.instance.currentTask.addListener(_onTaskChanged);
+  }
+
+  @override
+  void dispose() {
+    EbookDownloadService.instance.currentTask.removeListener(_onTaskChanged);
+    super.dispose();
+  }
+
+  void _onTaskChanged() {
+    final task = EbookDownloadService.instance.currentTask.value;
+    if (!mounted) return;
+    if (task != null && task.bookId == _book.id) {
+      setState(() {
+        _isDownloading = task.isRunning;
+        if (task.progress >= 0) _downloadProgress = task.progress;
+        if (task.isCompleted) {
+          _downloadedFilePath = task.localUri ?? task.localFilePath;
+        }
+      });
+    } else if (_isDownloading && (task == null || task.bookId != _book.id)) {
+      setState(() => _isDownloading = false);
+    }
   }
 
   Future<void> _loadBotUsername() async {
@@ -72,6 +105,15 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
       _downloadProgress = 0.0;
     });
 
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Downloading "${_book.title}" in the background. You can explore or leave the app—progress will show in your notification bar.',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
     final result = await EbookDownloadService.instance.downloadBook(
       book: _book,
       format: _selectedFormat,
@@ -81,10 +123,11 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
     );
 
     if (!mounted) return;
+    final targetPath = result.localUri ?? result.filePath;
     setState(() {
       _isDownloading = false;
       if (result.success) {
-        _downloadedFilePath = result.filePath;
+        _downloadedFilePath = targetPath;
       }
     });
 
@@ -93,11 +136,14 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
         content: Text(result.success
             ? 'Downloaded "${_book.title}" (${_selectedFormat.toUpperCase()})!'
             : 'Download failed: ${result.message}'),
-        action: result.success && result.filePath != null
+        action: result.success && targetPath != null
             ? SnackBarAction(
                 label: 'Open',
-                onPressed: () => EbookDownloadService.instance
-                    .openDownloadedBook(result.filePath!),
+                onPressed: () => EbookDownloadService.instance.openDownloadedBook(
+                  targetPath,
+                  downloadId: result.nativeDownloadId,
+                  format: _selectedFormat,
+                ),
               )
             : null,
         duration: const Duration(seconds: 4),
@@ -630,14 +676,27 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                 borderRadius: BorderRadius.circular(3),
               ),
               const SizedBox(height: 8),
-              Text(
-                _downloadProgress > 0
-                    ? 'Downloading ${(_downloadProgress * 100).toInt()}%...'
-                    : 'Connecting to archive servers...',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  color: textSecondary,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    _downloadProgress > 0
+                        ? 'Downloading ${(_downloadProgress * 100).toInt()}% • In background'
+                        : 'Connecting to archive servers...',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      color: textSecondary,
+                    ),
+                  ),
+                  Text(
+                    'Progress in notification',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      color: primaryColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ] else if (_downloadedFilePath != null) ...[
               Row(
@@ -645,7 +704,10 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => EbookDownloadService.instance
-                          .openDownloadedBook(_downloadedFilePath!),
+                          .openDownloadedBook(
+                        _downloadedFilePath!,
+                        format: _selectedFormat,
+                      ),
                       icon: const Icon(Icons.folder_open_rounded, size: 16),
                       label: Text(
                           'Open ${_selectedFormat.toUpperCase()} File'),

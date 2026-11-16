@@ -4,8 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/widgets/app_alert.dart';
 import '../../../core/widgets/reader_avatar.dart';
 import '../../analytics/presentation/reading_journey_screen.dart';
+import '../../explore/presentation/widgets/book_cover_image.dart';
 import '../../leaderboard/data/reading_session_store.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
 import '../../settings/presentation/settings_screen.dart';
@@ -154,11 +156,24 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
                     _bio = newBio;
                     _avatarUrl = newAvatar.isNotEmpty ? newAvatar : null;
                   });
-                  await SupabaseService.instance.updateProfile(
-                    fullName: newName,
-                    bio: newBio,
-                    avatarUrl: newAvatar.isNotEmpty ? newAvatar : null,
-                  );
+                  try {
+                    await SupabaseService.instance.updateProfile(
+                      fullName: newName,
+                      bio: newBio,
+                      avatarUrl: newAvatar.isNotEmpty ? newAvatar : null,
+                    );
+                    if (mounted) {
+                      AppAlert.showSuccess(context, 'Profile updated successfully!');
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      AppAlert.showError(
+                        context,
+                        e,
+                        defaultMessage: 'Unable to update profile. Please try again.',
+                      );
+                    }
+                  }
                 }
                 if (ctx.mounted) Navigator.of(ctx).pop();
               },
@@ -640,14 +655,27 @@ class _ReaderProfileScreenState extends State<ReaderProfileScreen>
           ),
           child: Row(
             children: [
-              Container(
-                width: 44,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
+              SizedBox(
+                width: 48,
+                height: 68,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: BookCoverImage(
+                    title: title,
+                    author: author,
+                    coverUrl: book['cover_image_url'] ?? book['cover_url'] ?? book['coverImageUrl'],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Icon(Icons.book_rounded, color: AppColors.primary),
               ),
               const SizedBox(width: 14),
               Expanded(

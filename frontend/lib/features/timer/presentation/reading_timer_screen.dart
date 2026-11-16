@@ -6,6 +6,8 @@ import '../../../core/services/co_reading_service.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../explore/data/open_library_service.dart';
+import '../../explore/presentation/widgets/book_cover_image.dart';
 import '../../leaderboard/data/reading_session_store.dart';
 import 'widgets/live_co_readers_widget.dart';
 
@@ -26,6 +28,7 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
   // Selected book
   String _currentBook = 'Before the coffee gets cold';
   String _currentAuthor = 'Toshikazu Kawaguchi';
+  String? _currentCoverUrl;
 
   // Active theme name for timer counter style
   String _activeCounterTheme = 'Sage Classic';
@@ -47,6 +50,30 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
     CoReadingService.instance.initChannel();
     ReadingSessionStore.instance.selectedBookForTimer
         .addListener(_onExternalBookSelected);
+    _lookupDefaultCover();
+  }
+
+  void _lookupDefaultCover() async {
+    if (_currentCoverUrl != null) return;
+    try {
+      final res = await OpenLibraryService.instance.searchBooks(_currentBook, limit: 1);
+      if (res.books.isNotEmpty && res.books.first.coverImageUrl != null && mounted) {
+        setState(() {
+          _currentCoverUrl = res.books.first.coverImageUrl;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _lookupCoverForBook(String title) async {
+    try {
+      final res = await OpenLibraryService.instance.searchBooks(title, limit: 1);
+      if (res.books.isNotEmpty && res.books.first.coverImageUrl != null && mounted && _currentBook == title) {
+        setState(() {
+          _currentCoverUrl = res.books.first.coverImageUrl;
+        });
+      }
+    } catch (_) {}
   }
 
   void _onExternalBookSelected() {
@@ -56,7 +83,11 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
       setState(() {
         _currentBook = bookData['title'] ?? _currentBook;
         _currentAuthor = bookData['author'] ?? _currentAuthor;
+        _currentCoverUrl = bookData['coverUrl'] ?? bookData['cover_url'] ?? bookData['coverImageUrl'];
       });
+      if (_currentCoverUrl == null) {
+        _lookupCoverForBook(_currentBook);
+      }
       if (_isRunning) {
         CoReadingService.instance.track(
           bookTitle: _currentBook,
@@ -380,15 +411,21 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                   ...shelf.take(5).map((b) {
                     final bTitle = b['title'] ?? 'Untitled';
                     final bAuthor = b['author'] ?? 'Unknown Author';
+                    final bCover = b['cover_image_url'] ?? b['cover_url'] ?? b['coverImageUrl'];
                     final isSel = bTitle.toString().toLowerCase() == _currentBook.toLowerCase();
 
                     return ListTile(
                       dense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      leading: Icon(
-                        Icons.bookmark_rounded,
-                        color: isSel ? AppColors.primary : AppColors.textSecondary,
-                        size: 20,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      leading: SizedBox(
+                        width: 32,
+                        height: 48,
+                        child: BookCoverImage(
+                          title: bTitle,
+                          author: bAuthor,
+                          coverUrl: bCover,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                       title: Text(
                         bTitle,
@@ -405,7 +442,11 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                         setState(() {
                           _currentBook = bTitle;
                           _currentAuthor = bAuthor;
+                          _currentCoverUrl = bCover;
                         });
+                        if (_currentCoverUrl == null) {
+                          _lookupCoverForBook(_currentBook);
+                        }
                         if (_isRunning) {
                           CoReadingService.instance.track(
                             bookTitle: _currentBook,
@@ -463,7 +504,9 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                         setState(() {
                           _currentBook = t;
                           _currentAuthor = a.isNotEmpty ? a : 'Author';
+                          _currentCoverUrl = null;
                         });
+                        _lookupCoverForBook(_currentBook);
                         if (_isRunning) {
                           CoReadingService.instance.track(
                             bookTitle: _currentBook,
@@ -656,16 +699,26 @@ class _ReadingTimerScreenState extends State<ReadingTimerScreen> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 44,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
-                          Icons.book_rounded,
-                          color: AppColors.primary,
+                      SizedBox(
+                        width: 48,
+                        height: 68,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: BookCoverImage(
+                            title: _currentBook,
+                            author: _currentAuthor,
+                            coverUrl: _currentCoverUrl,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),

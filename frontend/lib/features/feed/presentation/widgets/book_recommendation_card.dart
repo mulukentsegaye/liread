@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../explore/presentation/widgets/book_cover_image.dart';
 import '../../domain/post_model.dart';
-import 'book_cover_placeholder.dart';
 
 /// A card displaying a book recommendation with cover, metadata,
 /// star rating, and a snippet of the user's recommendation text.
@@ -29,9 +29,27 @@ class BookRecommendationCard extends StatelessWidget {
             child: Row(
               children: [
                 // Cover
-                BookCoverPlaceholder(
-                  title: data.bookTitle,
-                  author: data.bookAuthor,
+                SizedBox(
+                  width: 90,
+                  height: 130,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.12),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: BookCoverImage(
+                      title: data.bookTitle,
+                      author: data.bookAuthor,
+                      coverUrl: data.coverImageUrl,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 16),
 

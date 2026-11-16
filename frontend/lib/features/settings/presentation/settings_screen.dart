@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../core/widgets/app_alert.dart';
 import '../../auth/presentation/sign_in_screen.dart';
 import '../../auth/presentation/sign_up_screen.dart';
 import '../../onboarding/presentation/onboarding_screen.dart';
@@ -128,7 +130,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         setState(() {
           _isSaving = false;
-          _statusMessage = 'Failed to update: ${e.toString().replaceFirst('Exception: ', '')}';
+          _statusMessage = AppErrorHandler.format(
+            e,
+            defaultMessage: 'Unable to update your settings. Please check your connection and try again.',
+          );
           _statusIsSuccess = false;
         });
       }
@@ -230,45 +235,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   // ── Status Message Banner ──────────────────
                   if (_statusMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _statusIsSuccess
-                            ? AppColors.primary.withValues(alpha: 0.12)
-                            : Colors.redAccent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _statusIsSuccess
-                              ? AppColors.primary.withValues(alpha: 0.4)
-                              : Colors.redAccent.withValues(alpha: 0.4),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            _statusIsSuccess
-                                ? Icons.check_circle_outline_rounded
-                                : Icons.error_outline_rounded,
-                            color: _statusIsSuccess ? AppColors.primary : Colors.redAccent,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _statusMessage!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: _statusIsSuccess
-                                    ? AppColors.primary
-                                    : Colors.redAccent,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                    AppAlertBanner(
+                      message: _statusMessage!,
+                      type: _statusIsSuccess ? AlertType.success : AlertType.error,
+                      title: _statusIsSuccess ? 'Settings Updated' : 'Update Notice',
+                      onDismiss: () => setState(() => _statusMessage = null),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                   ],
 
                   // ── Section 1: Reader Identity ─────────────

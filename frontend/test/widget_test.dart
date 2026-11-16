@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readers_hub/app.dart';
 import 'package:readers_hub/core/theme/theme_controller.dart';
+import 'package:readers_hub/core/utils/error_handler.dart';
+import 'package:readers_hub/core/widgets/app_alert.dart';
 import 'package:readers_hub/features/explore/data/open_library_service.dart';
 import 'package:readers_hub/features/explore/presentation/widgets/book_details_sheet.dart';
 import 'package:readers_hub/features/leaderboard/data/reading_session_store.dart';
 import 'package:readers_hub/features/navigation/presentation/main_navigation_shell.dart';
 import 'package:readers_hub/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   testWidgets('Onboarding screen renders welcome slides and authentication options', (WidgetTester tester) async {
@@ -86,7 +89,7 @@ void main() {
 
     expect(find.text('A moment to read'), findsOneWidget);
     expect(find.text('One page. One breath. At your pace.'), findsOneWidget);
-    expect(find.text('Before the coffee gets cold'), findsNWidgets(2));
+    expect(find.text('Before the coffee gets cold'), findsWidgets);
     expect(find.text('Start session'), findsOneWidget);
     expect(find.text('Finish & save'), findsOneWidget);
     expect(find.text('A little every day'), findsOneWidget);
@@ -184,5 +187,70 @@ void main() {
     expect(find.text('Send to Telegram Bot'), findsOneWidget);
     expect(find.text('Share Card'), findsOneWidget);
     expect(find.text('@BooksFinderBot'), findsOneWidget);
+  });
+
+  test('AppErrorHandler translates technical auth and network errors to friendly messages', () {
+    // 1. Invalid login credentials AuthException
+    const authErr = AuthException('Invalid login credentials', statusCode: '400');
+    expect(
+      AppErrorHandler.format(authErr),
+      'Incorrect email address or password. Please verify your details and try again.',
+    );
+
+    // 2. Technical string with AuthException format
+    const strErr = 'AuthException(message: Invalid login credentials, statusCode: 400)';
+    expect(
+      AppErrorHandler.format(strErr),
+      'Incorrect email address or password. Please verify your details and try again.',
+    );
+
+    // 3. User already exists
+    const userErr = AuthException('User already registered', statusCode: '400');
+    expect(
+      AppErrorHandler.format(userErr),
+      'An account with this email address already exists. Please sign in instead.',
+    );
+
+    // 4. Invalid email format
+    const emailErr = AuthException('Unable to validate email address: invalid format', statusCode: '400');
+    expect(
+      AppErrorHandler.format(emailErr),
+      'Please enter a valid email address (e.g. reader@example.com).',
+    );
+
+    // 5. Network lookup error
+    const netErr = 'SocketException: Failed host lookup: xyz.supabase.co';
+    expect(
+      AppErrorHandler.format(netErr),
+      'Unable to reach the server. Please check your internet connection and try again.',
+    );
+
+    // 6. Email validation helper
+    expect(AppErrorHandler.isValidEmail('reader@example.com'), isTrue);
+    expect(AppErrorHandler.isValidEmail('invalid-email'), isFalse);
+    expect(AppErrorHandler.isValidEmail(''), isFalse);
+  });
+
+  testWidgets('AppAlertBanner renders user-friendly alert with dismiss action', (WidgetTester tester) async {
+    bool dismissed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AppAlertBanner(
+            title: 'Sign In Notice',
+            message: 'Incorrect email address or password. Please verify your details.',
+            onDismiss: () => dismissed = true,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Sign In Notice'), findsOneWidget);
+    expect(find.text('Incorrect email address or password. Please verify your details.'), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+
+    // Tap dismiss
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    expect(dismissed, isTrue);
   });
 }

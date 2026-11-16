@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_controller.dart';
+import '../../../../core/widgets/app_alert.dart';
 import '../../data/ebook_download_service.dart';
 import '../../data/open_library_service.dart';
 import '../../data/telegram_bot_service.dart';
@@ -108,7 +109,7 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Downloading "${_book.title}" in the background. You can explore or leave the app—progress will show in your notification bar.',
+          'Downloading "${_book.title}"...',
         ),
         duration: const Duration(seconds: 3),
       ),
@@ -131,14 +132,14 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
       }
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(result.success
-            ? 'Downloaded "${_book.title}" (${_selectedFormat.toUpperCase()})!'
-            : 'Download failed: ${result.message}'),
-        action: result.success && targetPath != null
+    if (result.success) {
+      AppAlert.showSuccess(
+        context,
+        'Downloaded "${_book.title}" (${_selectedFormat.toUpperCase()})!',
+        action: targetPath != null
             ? SnackBarAction(
                 label: 'Open',
+                textColor: Colors.white,
                 onPressed: () => EbookDownloadService.instance.openDownloadedBook(
                   targetPath,
                   downloadId: result.nativeDownloadId,
@@ -146,19 +147,23 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                 ),
               )
             : null,
-        duration: const Duration(seconds: 4),
-      ),
-    );
+      );
+    } else {
+      AppAlert.showError(
+        context,
+        result.message,
+        defaultMessage: 'Download failed. Please check your internet connection and try again.',
+      );
+    }
   }
 
   Future<void> _handleSendToTelegramBot() async {
     final ok = await TelegramBotService.instance.launchBotWithBook(_book);
     if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Could not open Telegram with @$_botUsername. Check your connection or bot configuration.'),
-        ),
+      AppAlert.show(
+        context,
+        message: 'Could not open Telegram with @$_botUsername. Please ensure Telegram is installed.',
+        type: AlertType.warning,
       );
     }
   }
@@ -676,27 +681,14 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                 borderRadius: BorderRadius.circular(3),
               ),
               const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _downloadProgress > 0
-                        ? 'Downloading ${(_downloadProgress * 100).toInt()}% • In background'
-                        : 'Connecting to archive servers...',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: textSecondary,
-                    ),
-                  ),
-                  Text(
-                    'Progress in notification',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      color: primaryColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              Text(
+                _downloadProgress > 0
+                    ? 'Downloading ${(_downloadProgress * 100).toInt()}%'
+                    : 'Connecting...',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  color: textSecondary,
+                ),
               ),
             ] else if (_downloadedFilePath != null) ...[
               Row(

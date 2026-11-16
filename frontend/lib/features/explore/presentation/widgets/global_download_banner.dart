@@ -151,8 +151,8 @@ class GlobalDownloadBanner extends StatelessWidget {
                         Text(
                           isDownloading
                               ? (task.progress >= 0
-                                  ? 'Downloading • ${(task.progress * 100).toInt()}% • Runs in background'
-                                  : 'Connecting to archive servers...')
+                                  ? 'Downloading • ${(task.progress * 100).toInt()}%'
+                                  : 'Connecting...')
                               : (isCompleted
                                   ? 'Downloaded to device • Tap Open to read'
                                   : (task.errorMessage ?? 'Download failed')),

@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../core/widgets/app_alert.dart';
 import '../../navigation/presentation/main_navigation_shell.dart';
 import 'sign_up_screen.dart';
 
@@ -40,6 +42,13 @@ class _SignInScreenState extends State<SignInScreen> {
       return;
     }
 
+    if (!AppErrorHandler.isValidEmail(email)) {
+      setState(() {
+        _errorMessage = 'Please enter a valid email address (e.g. reader@example.com).';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -59,7 +68,7 @@ class _SignInScreenState extends State<SignInScreen> {
         }
       } else {
         setState(() {
-          _errorMessage = 'Unable to sign in. Please verify your credentials.';
+          _errorMessage = 'Incorrect email address or password. Please verify your details.';
           _isLoading = false;
         });
       }
@@ -67,7 +76,10 @@ class _SignInScreenState extends State<SignInScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString().replaceFirst('Exception: ', '').replaceFirst('AuthException: ', '');
+          _errorMessage = AppErrorHandler.format(
+            e,
+            defaultMessage: 'Incorrect email address or password. Please check your details and try again.',
+          );
         });
       }
     }
@@ -124,6 +136,12 @@ class _SignInScreenState extends State<SignInScreen> {
                       : () async {
                           final email = resetEmailCtrl.text.trim();
                           if (email.isEmpty) return;
+                          if (!AppErrorHandler.isValidEmail(email)) {
+                            setDlgState(() {
+                              resetMsg = 'Please enter a valid email address (e.g. reader@example.com).';
+                            });
+                            return;
+                          }
                           setDlgState(() => isSending = true);
                           try {
                             if (SupabaseService.instance.client != null) {
@@ -131,12 +149,15 @@ class _SignInScreenState extends State<SignInScreen> {
                             }
                             setDlgState(() {
                               isSending = false;
-                              resetMsg = 'Password reset instructions sent to $email!';
+                              resetMsg = 'Password reset instructions have been sent to $email!';
                             });
                           } catch (e) {
                             setDlgState(() {
                               isSending = false;
-                              resetMsg = 'Error: $e';
+                              resetMsg = AppErrorHandler.format(
+                                e,
+                                defaultMessage: 'Unable to send reset link. Please check your email and try again.',
+                              );
                             });
                           }
                         },
@@ -237,27 +258,12 @@ class _SignInScreenState extends State<SignInScreen> {
 
                   // ── Error Banner ─────────────────────────────
                   if (_errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
+                    AppAlertBanner(
+                      title: 'Unable to Sign In',
+                      message: _errorMessage!,
+                      onDismiss: () => setState(() => _errorMessage = null),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                   ],
 
                   // ── Form Card ────────────────────────────────

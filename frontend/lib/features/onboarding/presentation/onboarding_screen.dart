@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../core/widgets/app_alert.dart';
 import '../../navigation/presentation/main_navigation_shell.dart';
 
 /// Onboarding and Welcome screen for Liread.
@@ -124,26 +126,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     ),
 
                     if (errorMessage != null) ...[
-                      const SizedBox(height: 14),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.redAccent.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                errorMessage!,
-                                style: const TextStyle(color: Colors.redAccent, fontSize: 12),
-                              ),
-                            ),
-                          ],
-                        ),
+                      AppAlertBanner(
+                        title: modeSignUp ? 'Sign Up Notice' : 'Sign In Notice',
+                        message: errorMessage!,
+                        onDismiss: () => setSheetState(() => errorMessage = null),
+                        margin: const EdgeInsets.only(top: 14),
                       ),
                     ],
 
@@ -219,6 +206,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   return;
                                 }
 
+                                if (!AppErrorHandler.isValidEmail(email)) {
+                                  setSheetState(() {
+                                    errorMessage = 'Please enter a valid email address (e.g. reader@example.com).';
+                                  });
+                                  return;
+                                }
+
                                 setSheetState(() {
                                   isLoading = true;
                                   errorMessage = null;
@@ -266,7 +260,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                 } catch (e) {
                                   setSheetState(() {
                                     isLoading = false;
-                                    errorMessage = e.toString().replaceFirst('Exception: ', '');
+                                    errorMessage = AppErrorHandler.format(
+                                      e,
+                                      defaultMessage: modeSignUp
+                                          ? 'Unable to create account. Please check your information and try again.'
+                                          : 'Incorrect email address or password. Please verify your details and try again.',
+                                    );
                                   });
                                 }
                               },

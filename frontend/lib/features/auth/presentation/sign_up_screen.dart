@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/services/supabase_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/error_handler.dart';
+import '../../../core/widgets/app_alert.dart';
 import '../../navigation/presentation/main_navigation_shell.dart';
 import 'sign_in_screen.dart';
 
@@ -42,6 +44,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (name.isEmpty || username.isEmpty || email.isEmpty || password.isEmpty) {
       setState(() {
         _errorMessage = 'Please fill in all fields to create your account.';
+      });
+      return;
+    }
+
+    if (!AppErrorHandler.isValidEmail(email)) {
+      setState(() {
+        _errorMessage = 'Please enter a valid email address (e.g. reader@example.com).';
       });
       return;
     }
@@ -86,7 +95,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = e.toString().replaceFirst('Exception: ', '').replaceFirst('AuthException: ', '');
+          _errorMessage = AppErrorHandler.format(
+            e,
+            defaultMessage: 'Unable to create your account. Please check your information and try again.',
+          );
         });
       }
     }
@@ -173,27 +185,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   // ── Error Banner ─────────────────────────────
                   if (_errorMessage != null) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
+                    AppAlertBanner(
+                      title: 'Unable to Create Account',
+                      message: _errorMessage!,
+                      onDismiss: () => setState(() => _errorMessage = null),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                   ],
 
                   // ── Form Card ────────────────────────────────

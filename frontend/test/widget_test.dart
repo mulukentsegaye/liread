@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readers_hub/app.dart';
+import 'package:readers_hub/core/services/app_update_service.dart';
 import 'package:readers_hub/core/theme/theme_controller.dart';
 import 'package:readers_hub/core/utils/error_handler.dart';
 import 'package:readers_hub/core/widgets/app_alert.dart';
@@ -252,5 +253,25 @@ void main() {
     // Tap dismiss
     await tester.tap(find.byIcon(Icons.close_rounded));
     expect(dismissed, isTrue);
+  });
+
+  test('AppUpdateService compares semantic versions correctly', () {
+    final service = AppUpdateService.instance;
+
+    // Newer patch version
+    expect(service.isNewerVersion('1.2.3', '1.2.4'), isTrue);
+    // Newer minor version
+    expect(service.isNewerVersion('1.2.3', '1.3.0'), isTrue);
+    // Newer major version
+    expect(service.isNewerVersion('1.2.3', '2.0.0'), isTrue);
+
+    // Same version
+    expect(service.isNewerVersion('1.2.3', '1.2.3'), isFalse);
+    // Older patch version
+    expect(service.isNewerVersion('1.2.3', '1.2.2'), isFalse);
+    // Older minor version
+    expect(service.isNewerVersion('1.2.3', '1.1.9'), isFalse);
+    // Older major version
+    expect(service.isNewerVersion('2.0.0', '1.9.9'), isFalse);
   });
 }

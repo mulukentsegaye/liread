@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../core/services/app_update_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../explore/presentation/explore_screen.dart';
@@ -41,6 +42,11 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     _currentIndex = widget.initialIndex;
     ReadingSessionStore.instance.tabNavigationRequest
         .addListener(_onExternalTabRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        AppUpdateService.instance.checkAndPromptUpdate(context);
+      }
+    });
   }
 
   @override

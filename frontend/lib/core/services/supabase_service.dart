@@ -40,19 +40,73 @@ class SupabaseService {
   bool get isAuthenticated => client?.auth.currentUser != null;
   String? get currentUserId => client?.auth.currentUser?.id;
 
-  /// Check whether user is logged in or active in guest mode
+  /// Fast offline storage pre-warm to load cached profile & state without any network.
+  Future<void> preWarmOfflineStorage() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _isGuest = prefs.getBool('liread_is_guest') ?? false;
+
+      final cachedProfileStr = prefs.getString('liread_cached_profile_json');
+      if (cachedProfileStr != null) {
+        try {
+          _currentProfile = Map<String, dynamic>.from(jsonDecode(cachedProfileStr));
+          ReadingSessionStore.instance.updateCurrentUserProfile(_currentProfile!);
+        } catch (_) {}
+      }
+
+      if (_currentProfile == null) {
+        if (_isGuest) {
+          _loadGuestProfile(prefs);
+        } else {
+          _loadDefaultOfflineProfile(prefs);
+        }
+      }
+    } catch (e) {
+      debugPrint('Prewarm offline storage error: $e');
+    }
+  }
+
+  void _loadDefaultOfflineProfile(SharedPreferences prefs) {
+    _currentProfile = {
+      'id': 'offline_reader',
+      'username': prefs.getString('liread_saved_username') ?? 'julian_reed',
+      'full_name': prefs.getString('liread_saved_name') ?? 'Julian Reed',
+      'bio': 'Cultivating stillness and mindful reading.',
+      'daily_goal_minutes': prefs.getInt('liread_saved_goal') ?? 45,
+      'rank_tier': 'Thoughtful Reader',
+      'total_minutes_read': prefs.getInt('liread_saved_minutes') ?? 42,
+      'current_streak': prefs.getInt('liread_saved_streak') ?? 3,
+      'avatar_url': null,
+    };
+    ReadingSessionStore.instance.updateCurrentUserProfile(_currentProfile!);
+  }
+
+  /// Check whether user is logged in or active in guest/offline mode
   Future<bool> hasActiveSession() async {
     if (isAuthenticated) return true;
     try {
       final prefs = await SharedPreferences.getInstance();
+      final signedOut = prefs.getBool('liread_signed_out') ?? false;
+      if (signedOut) return false;
+
+      final hasSession = prefs.getBool('liread_has_session') ?? false;
       _isGuest = prefs.getBool('liread_is_guest') ?? false;
-      return _isGuest;
+      final hasOpenedBefore = prefs.getBool('liread_has_opened_before') ?? false;
+
+      // Always allow offline users into the app sanctuary
+      if (hasSession || _isGuest || hasOpenedBefore || _currentProfile != null) {
+        return true;
+      }
+
+      // Mark that the app has opened before so future launches are always active
+      await prefs.setBool('liread_has_opened_before', true);
+      return true;
     } catch (_) {
-      return false;
+      return true;
     }
   }
 
-  /// Initialize Supabase
+  /// Initialize Supabase with resilient timeout guards for offline launch
   Future<void> initialize() async {
     if (_initialized) return;
     try {
@@ -60,33 +114,40 @@ class SupabaseService {
         url: supabaseUrl,
         // ignore: deprecated_member_use
         anonKey: supabaseAnonKey,
-      );
+      ).timeout(const Duration(seconds: 4));
       _initialized = true;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('liread_has_opened_before', true);
+
       if (isAuthenticated) {
         _isGuest = false;
+        await prefs.setBool('liread_is_guest', false);
+        await prefs.setBool('liread_has_session', true);
+        await prefs.setBool('liread_signed_out', false);
         await fetchCurrentUserProfile();
       } else {
         // Automatically authenticate with user account so likes, bookmarks, and sessions
-        // match the web version seamlessly.
+        // match the web version seamlessly when internet is available.
         try {
           final res = await client?.auth.signInWithPassword(
             email: 'demo@liread.com',
             password: 'Password123!',
-          );
+          ).timeout(const Duration(seconds: 3));
+
           if (res?.user != null) {
             _isGuest = false;
-            final prefs = await SharedPreferences.getInstance();
             await prefs.setBool('liread_is_guest', false);
+            await prefs.setBool('liread_has_session', true);
+            await prefs.setBool('liread_signed_out', false);
             await fetchCurrentUserProfile();
           } else {
-            final prefs = await SharedPreferences.getInstance();
             _isGuest = prefs.getBool('liread_is_guest') ?? false;
             if (_isGuest) {
               _loadGuestProfile(prefs);
             }
           }
         } catch (_) {
-          final prefs = await SharedPreferences.getInstance();
           _isGuest = prefs.getBool('liread_is_guest') ?? false;
           if (_isGuest) {
             _loadGuestProfile(prefs);
@@ -113,11 +174,36 @@ class SupabaseService {
     ReadingSessionStore.instance.updateCurrentUserProfile(_currentProfile!);
   }
 
+  Future<void> _persistProfileLocally() async {
+    if (_currentProfile == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('liread_cached_profile_json', jsonEncode(_currentProfile));
+      if (_currentProfile?['full_name'] != null) {
+        await prefs.setString('liread_saved_name', _currentProfile!['full_name'].toString());
+      }
+      if (_currentProfile?['username'] != null) {
+        await prefs.setString('liread_saved_username', _currentProfile!['username'].toString());
+      }
+      if (_currentProfile?['daily_goal_minutes'] != null) {
+        await prefs.setInt('liread_saved_goal', (_currentProfile!['daily_goal_minutes'] as num).toInt());
+      }
+      if (_currentProfile?['total_minutes_read'] != null) {
+        await prefs.setInt('liread_saved_minutes', (_currentProfile!['total_minutes_read'] as num).toInt());
+      }
+      if (_currentProfile?['current_streak'] != null) {
+        await prefs.setInt('liread_saved_streak', (_currentProfile!['current_streak'] as num).toInt());
+      }
+    } catch (_) {}
+  }
+
   Future<void> setGuestMode({String? name, String? handle}) async {
     _isGuest = true;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('liread_is_guest', true);
+      await prefs.setBool('liread_has_session', true);
+      await prefs.setBool('liread_signed_out', false);
       if (name != null) await prefs.setString('liread_guest_name', name);
       if (handle != null) await prefs.setString('liread_guest_handle', handle);
       _loadGuestProfile(prefs);
@@ -145,6 +231,8 @@ class SupabaseService {
       _isGuest = false;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('liread_is_guest', false);
+      await prefs.setBool('liread_has_session', true);
+      await prefs.setBool('liread_signed_out', false);
       await fetchCurrentUserProfile();
     }
     return res;
@@ -167,6 +255,8 @@ class SupabaseService {
       _isGuest = false;
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('liread_is_guest', false);
+      await prefs.setBool('liread_has_session', true);
+      await prefs.setBool('liread_signed_out', false);
       await ensureProfileExists(res.user!.id, cleanUsername, fullName.trim());
       await fetchCurrentUserProfile();
     }
@@ -175,13 +265,18 @@ class SupabaseService {
 
   Future<void> signOut() async {
     if (_initialized && client != null) {
-      await client!.auth.signOut();
+      try {
+        await client!.auth.signOut().timeout(const Duration(seconds: 3));
+      } catch (_) {}
     }
     _isGuest = false;
     _currentProfile = null;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('liread_is_guest');
+      await prefs.remove('liread_has_session');
+      await prefs.remove('liread_cached_profile_json');
+      await prefs.setBool('liread_signed_out', true);
     } catch (_) {}
   }
 
@@ -210,17 +305,18 @@ class SupabaseService {
 
   Future<Map<String, dynamic>?> fetchCurrentUserProfile() async {
     if (client == null || currentUserId == null) {
-      if (_isGuest) return _currentProfile;
-      return null;
+      return _currentProfile;
     }
     try {
       final data = await client!
           .from('profiles')
           .select('*')
           .eq('id', currentUserId!)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 4));
       if (data != null) {
         _currentProfile = Map<String, dynamic>.from(data);
+        await _persistProfileLocally();
         ReadingSessionStore.instance.updateCurrentUserProfile(_currentProfile!);
       }
       return _currentProfile;
@@ -236,13 +332,18 @@ class SupabaseService {
     int? dailyGoalMinutes,
     String? avatarUrl,
   }) async {
-    if (_isGuest) {
-      if (_currentProfile != null) {
-        if (fullName != null) _currentProfile!['full_name'] = fullName;
-        if (bio != null) _currentProfile!['bio'] = bio;
-        if (dailyGoalMinutes != null) _currentProfile!['daily_goal_minutes'] = dailyGoalMinutes;
-        if (avatarUrl != null) _currentProfile!['avatar_url'] = avatarUrl;
+    if (_currentProfile != null) {
+      if (fullName != null) _currentProfile!['full_name'] = fullName;
+      if (bio != null) _currentProfile!['bio'] = bio;
+      if (dailyGoalMinutes != null) {
+        _currentProfile!['daily_goal_minutes'] = dailyGoalMinutes;
       }
+      if (avatarUrl != null) _currentProfile!['avatar_url'] = avatarUrl;
+      await _persistProfileLocally();
+      ReadingSessionStore.instance.updateCurrentUserProfile(_currentProfile!);
+    }
+
+    if (_isGuest) {
       try {
         final prefs = await SharedPreferences.getInstance();
         if (fullName != null) await prefs.setString('liread_guest_name', fullName);
@@ -252,17 +353,20 @@ class SupabaseService {
     }
 
     if (client == null || currentUserId == null) return;
-    final updates = <String, dynamic>{};
-    if (fullName != null) updates['full_name'] = fullName;
-    if (bio != null) updates['bio'] = bio;
-    if (dailyGoalMinutes != null) {
-      updates['daily_goal_minutes'] = dailyGoalMinutes;
-    }
-    if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
-    updates['updated_at'] = DateTime.now().toIso8601String();
+    try {
+      final updates = <String, dynamic>{};
+      if (fullName != null) updates['full_name'] = fullName;
+      if (bio != null) updates['bio'] = bio;
+      if (dailyGoalMinutes != null) {
+        updates['daily_goal_minutes'] = dailyGoalMinutes;
+      }
+      if (avatarUrl != null) updates['avatar_url'] = avatarUrl;
+      updates['updated_at'] = DateTime.now().toIso8601String();
 
-    await client!.from('profiles').update(updates).eq('id', currentUserId!);
-    await fetchCurrentUserProfile();
+      await client!.from('profiles').update(updates).eq('id', currentUserId!).timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('Error updating profile in Supabase: $e');
+    }
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -285,15 +389,19 @@ class SupabaseService {
     };
     await _cacheReadingSessionLocally(sessionMap);
 
+    // Update streak and total minutes immediately in local profile so profile reflects it offline
+    final currentMins = (_currentProfile?['total_minutes_read'] as num?)?.toInt() ?? 0;
+    final currentStreak = (_currentProfile?['current_streak'] as num?)?.toInt() ?? 0;
+    final newMins = currentMins + durationMinutes;
+    final newStreak = currentStreak + (durationMinutes > 0 ? 1 : 0);
+    if (_currentProfile != null) {
+      _currentProfile!['total_minutes_read'] = newMins;
+      _currentProfile!['current_streak'] = newStreak;
+      await _persistProfileLocally();
+      ReadingSessionStore.instance.updateCurrentUserProfile(_currentProfile!);
+    }
+
     if (_isGuest) {
-      final currentMins = (_currentProfile?['total_minutes_read'] as num?)?.toInt() ?? 0;
-      final currentStreak = (_currentProfile?['current_streak'] as num?)?.toInt() ?? 0;
-      final newMins = currentMins + durationMinutes;
-      final newStreak = currentStreak + 1;
-      if (_currentProfile != null) {
-        _currentProfile!['total_minutes_read'] = newMins;
-        _currentProfile!['current_streak'] = newStreak;
-      }
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('liread_guest_minutes', newMins);
@@ -311,8 +419,7 @@ class SupabaseService {
         'duration_minutes': durationMinutes,
         'duration_seconds': durationSeconds,
         'session_date': todayStr,
-      });
-      await fetchCurrentUserProfile();
+      }).timeout(const Duration(seconds: 4));
       return true;
     } catch (e) {
       debugPrint('Error logging session: $e');
@@ -383,6 +490,7 @@ class SupabaseService {
       }
     }
 
+    bool remoteSuccess = false;
     if (client != null) {
       try {
         var query = client!.from('posts').select('''
@@ -407,15 +515,41 @@ class SupabaseService {
           query = query.eq('tag', tag);
         }
 
-        final res = await query.order('created_at', ascending: false).limit(40);
+        final res = await query.order('created_at', ascending: false).limit(40).timeout(const Duration(seconds: 4));
         final List<dynamic> data = res as List<dynamic>;
-        for (final item in data) {
+        if (data.isNotEmpty) {
+          remoteSuccess = true;
+          await _cacheRemotePostsLocally(data);
+          for (final item in data) {
+            if (!allRawData.any((r) => r['id'].toString() == item['id'].toString())) {
+              allRawData.add(item);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error or timeout fetching posts: $e');
+      }
+    }
+
+    // Offline fallback: load cached remote posts
+    if (!remoteSuccess) {
+      final cachedPosts = await _getCachedRemotePosts();
+      for (final item in cachedPosts) {
+        if (tag == null || tag == 'All' || item['tag'] == tag) {
           if (!allRawData.any((r) => r['id'].toString() == item['id'].toString())) {
             allRawData.add(item);
           }
         }
-      } catch (e) {
-        debugPrint('Error fetching posts: $e');
+      }
+    }
+
+    // If still empty (e.g. fresh install offline), use rich curated seed posts
+    if (allRawData.isEmpty) {
+      final seedPosts = _getOfflineSeedPosts();
+      for (final item in seedPosts) {
+        if (tag == null || tag == 'All' || item['tag'] == tag) {
+          allRawData.add(item);
+        }
       }
     }
 
@@ -532,6 +666,102 @@ class SupabaseService {
       }
     } catch (_) {}
     return [];
+  }
+
+  Future<void> _cacheRemotePostsLocally(List<dynamic> posts) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('liread_cached_remote_posts', jsonEncode(posts));
+    } catch (_) {}
+  }
+
+  Future<List<dynamic>> _getCachedRemotePosts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('liread_cached_remote_posts');
+      if (str != null) {
+        return jsonDecode(str) as List<dynamic>;
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  List<Map<String, dynamic>> _getOfflineSeedPosts() {
+    return [
+      {
+        'id': 'offline-seed-1',
+        'book_title': 'Meditations',
+        'book_author': 'Marcus Aurelius',
+        'quote_text': 'You have power over your mind - not outside events. Realize this, and you will find strength.',
+        'page_number': 84,
+        'tag': 'Philosophy',
+        'post_type': 'passage',
+        'created_at': DateTime.now().subtract(const Duration(hours: 2)).toIso8601String(),
+        'profiles': {
+          'username': 'marcus_stoic',
+          'full_name': 'Marcus Aurelius',
+          'avatar_url': null,
+        },
+        'post_upvotes': [{'user_id': 'demo_1'}, {'user_id': 'demo_2'}],
+        'post_comments': [{'id': 'c1'}],
+        'saved_posts': [],
+      },
+      {
+        'id': 'offline-seed-2',
+        'book_title': 'Pride and Prejudice',
+        'book_author': 'Jane Austen',
+        'recommendation_text': 'A timeless exploration of human vulnerability, wit, and quiet character growth. Unmatched prose that rewards every rereading.',
+        'rating': 5.0,
+        'page_number': 279,
+        'tag': 'Fiction',
+        'post_type': 'recommendation',
+        'created_at': DateTime.now().subtract(const Duration(hours: 5)).toIso8601String(),
+        'profiles': {
+          'username': 'jane_reader',
+          'full_name': 'Elizabeth Bennet',
+          'avatar_url': null,
+        },
+        'post_upvotes': [{'user_id': 'demo_3'}],
+        'post_comments': [],
+        'saved_posts': [],
+      },
+      {
+        'id': 'offline-seed-3',
+        'book_title': 'Letters from a Stoic',
+        'book_author': 'Seneca',
+        'quote_text': 'Reading nourishes the mind and refreshes us when we are wearied with study, though it still requires a degree of thought.',
+        'page_number': 112,
+        'tag': 'Philosophy',
+        'post_type': 'passage',
+        'created_at': DateTime.now().subtract(const Duration(hours: 12)).toIso8601String(),
+        'profiles': {
+          'username': 'seneca_lucilius',
+          'full_name': 'Lucius Annaeus Seneca',
+          'avatar_url': null,
+        },
+        'post_upvotes': [{'user_id': 'demo_1'}],
+        'post_comments': [],
+        'saved_posts': [],
+      },
+      {
+        'id': 'offline-seed-4',
+        'book_title': 'Crime and Punishment',
+        'book_author': 'Fyodor Dostoevsky',
+        'quote_text': 'It takes something more than intelligence to act intelligently.',
+        'page_number': 345,
+        'tag': 'Fiction',
+        'post_type': 'passage',
+        'created_at': DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
+        'profiles': {
+          'username': 'dostoevsky_lit',
+          'full_name': 'Fyodor Dostoevsky',
+          'avatar_url': null,
+        },
+        'post_upvotes': [{'user_id': 'demo_4'}],
+        'post_comments': [],
+        'saved_posts': [],
+      },
+    ];
   }
 
   Future<bool> createPost({
@@ -872,23 +1102,28 @@ class SupabaseService {
   // ─────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> fetchBookshelf() async {
-    if (client == null || currentUserId == null) {
-      return _getLocalBookshelf();
+    if (client != null && currentUserId != null) {
+      try {
+        final res = await client!
+            .from('bookshelf')
+            .select('*')
+            .eq('user_id', currentUserId!)
+            .order('updated_at', ascending: false)
+            .timeout(const Duration(seconds: 4));
+        final List<Map<String, dynamic>> items =
+            List<Map<String, dynamic>>.from(res as List);
+        await _cacheBookshelfLocally(items);
+        return items;
+      } catch (e) {
+        debugPrint('Error fetching bookshelf: $e');
+      }
     }
-    try {
-      final res = await client!
-          .from('bookshelf')
-          .select('*')
-          .eq('user_id', currentUserId!)
-          .order('updated_at', ascending: false);
-      final List<Map<String, dynamic>> items =
-          List<Map<String, dynamic>>.from(res as List);
-      _cacheBookshelfLocally(items);
-      return items;
-    } catch (e) {
-      debugPrint('Error fetching bookshelf: $e');
-      return _getLocalBookshelf();
+
+    final local = await _getLocalBookshelf();
+    if (local.isNotEmpty) {
+      return local;
     }
+    return _getDefaultOfflineBookshelf();
   }
 
   Future<bool> updateBookStatus({
@@ -1001,39 +1236,127 @@ class SupabaseService {
   // ─────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> fetchSavedPassages() async {
-    if (client == null || currentUserId == null) return [];
-    try {
-      final res = await client!.from('saved_posts').select('''
-        id,
-        created_at,
-        posts:post_id (
+    if (client != null && currentUserId != null) {
+      try {
+        final res = await client!.from('saved_posts').select('''
           id,
-          book_title,
-          book_author,
-          quote_text,
-          page_number,
-          profiles:user_id (
-            username,
-            full_name
+          created_at,
+          posts:post_id (
+            id,
+            book_title,
+            book_author,
+            quote_text,
+            page_number,
+            profiles:user_id (
+              username,
+              full_name
+            )
           )
-        )
-      ''').eq('user_id', currentUserId!).order('created_at', ascending: false);
+        ''').eq('user_id', currentUserId!).order('created_at', ascending: false).timeout(const Duration(seconds: 4));
 
-      final List<dynamic> data = res as List<dynamic>;
-      return data.map((item) {
-        final p = item['posts'] as Map<String, dynamic>? ?? {};
-        final prof = p['profiles'] as Map<String, dynamic>? ?? {};
-        return {
-          'quote': p['quote_text'] ?? 'Saved passage',
-          'author': p['book_author'] ?? 'Unknown Author',
-          'book': p['book_title'] ?? 'Untitled',
-          'sharedBy': prof['full_name'] ?? prof['username'] ?? 'Fellow Reader',
-        };
-      }).toList();
-    } catch (e) {
-      debugPrint('Error fetching saved passages: $e');
-      return [];
+        final List<dynamic> data = res as List<dynamic>;
+        final list = data.map((item) {
+          final p = item['posts'] as Map<String, dynamic>? ?? {};
+          final prof = p['profiles'] as Map<String, dynamic>? ?? {};
+          return {
+            'quote': p['quote_text'] ?? 'Saved passage',
+            'author': p['book_author'] ?? 'Unknown Author',
+            'book': p['book_title'] ?? 'Untitled',
+            'sharedBy': prof['full_name'] ?? prof['username'] ?? 'Fellow Reader',
+          };
+        }).toList();
+
+        await _cacheSavedPassagesLocally(list);
+        return list;
+      } catch (e) {
+        debugPrint('Error fetching saved passages: $e');
+      }
     }
+
+    final cached = await _getCachedSavedPassagesLocally();
+    if (cached.isNotEmpty) {
+      return cached;
+    }
+    return _getDefaultCommonplacePassages();
+  }
+
+  Future<void> _cacheSavedPassagesLocally(List<Map<String, dynamic>> list) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('liread_saved_passages_cache', jsonEncode(list));
+    } catch (_) {}
+  }
+
+  Future<List<Map<String, dynamic>>> _getCachedSavedPassagesLocally() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('liread_saved_passages_cache');
+      if (str != null) {
+        return List<Map<String, dynamic>>.from(jsonDecode(str));
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  List<Map<String, dynamic>> _getDefaultOfflineBookshelf() {
+    return [
+      {
+        'id': 'default-shelf-1',
+        'user_id': currentUserId ?? 'offline_reader',
+        'title': 'Meditations',
+        'author': 'Marcus Aurelius',
+        'status': 'reading',
+        'progress_percentage': 45,
+        'cover_image_url': 'https://covers.openlibrary.org/b/id/8231996-M.jpg',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'default-shelf-2',
+        'user_id': currentUserId ?? 'offline_reader',
+        'title': 'Pride and Prejudice',
+        'author': 'Jane Austen',
+        'status': 'want_to_read',
+        'progress_percentage': 0,
+        'cover_image_url': 'https://covers.openlibrary.org/b/id/8313886-M.jpg',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'default-shelf-3',
+        'user_id': currentUserId ?? 'offline_reader',
+        'title': 'Letters from a Stoic',
+        'author': 'Seneca',
+        'status': 'finished',
+        'progress_percentage': 100,
+        'cover_image_url': 'https://covers.openlibrary.org/b/id/7222246-M.jpg',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+    ];
+  }
+
+  List<Map<String, dynamic>> _getDefaultCommonplacePassages() {
+    return [
+      {
+        'quote': 'You have power over your mind - not outside events. Realize this, and you will find strength.',
+        'author': 'Marcus Aurelius',
+        'book': 'Meditations',
+        'sharedBy': 'Marcus Aurelius',
+      },
+      {
+        'quote': 'I declare after all there is no enjoyment like reading! How much sooner one tires of any thing than of a book!',
+        'author': 'Jane Austen',
+        'book': 'Pride and Prejudice',
+        'sharedBy': 'Elizabeth Bennet',
+      },
+      {
+        'quote': 'Reading nourishes the mind and refreshes us when we are wearied with study.',
+        'author': 'Seneca',
+        'book': 'Letters from a Stoic',
+        'sharedBy': 'Seneca',
+      },
+    ];
   }
 
   // ─────────────────────────────────────────────────────────────

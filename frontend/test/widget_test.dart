@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:readers_hub/app.dart';
 import 'package:readers_hub/core/services/app_update_service.dart';
+import 'package:readers_hub/core/services/supabase_service.dart';
 import 'package:readers_hub/core/theme/theme_controller.dart';
 import 'package:readers_hub/core/utils/error_handler.dart';
 import 'package:readers_hub/core/widgets/app_alert.dart';
@@ -339,5 +340,27 @@ void main() {
     expect(updated.avatarUrl, equals('https://example.com/aman.png'));
     expect(updated.likes, equals(2));
     expect(updated.isLiked, isTrue);
+  });
+
+  test('Offline mode: preWarmOfflineStorage populates offline profile and hasActiveSession is true', () async {
+    SharedPreferences.setMockInitialValues({});
+    await SupabaseService.instance.preWarmOfflineStorage();
+
+    final profile = SupabaseService.instance.currentProfile;
+    expect(profile, isNotNull);
+    expect(profile?['full_name'], isNotEmpty);
+
+    final hasSession = await SupabaseService.instance.hasActiveSession();
+    expect(hasSession, isTrue);
+
+    // Feed posts fallback to curated classic literature offline
+    final posts = await SupabaseService.instance.fetchFeedPosts();
+    expect(posts, isNotEmpty);
+    expect(posts.any((p) => p.bookRecommendation?.bookTitle == 'Pride and Prejudice' || p.quotePost?.bookTitle == 'Meditations'), isTrue);
+
+    // Explore category shelf falls back to curated offline books
+    final philosophyBooks = await OpenLibraryService.instance.getCategoryBooks('philosophy');
+    expect(philosophyBooks, isNotEmpty);
+    expect(philosophyBooks.any((b) => b.title == 'Meditations'), isTrue);
   });
 }

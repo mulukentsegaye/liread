@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,12 +9,11 @@ import 'core/services/supabase_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Supabase backend service and live co-reading presence channel
+  // Fast offline cache pre-warm so profile, stats, and session are instantly available
   try {
-    await SupabaseService.instance.initialize();
-    CoReadingService.instance.initChannel();
+    await SupabaseService.instance.preWarmOfflineStorage();
   } catch (e) {
-    debugPrint('Supabase init notice: $e');
+    debugPrint('Offline cache pre-warm notice: $e');
   }
 
   // Light status bar icons on light background
@@ -25,5 +25,15 @@ void main() async {
     ),
   );
 
+  // Render UI immediately so offline APK opens in <100ms
   runApp(const LireadApp());
+
+  // Non-blocking background sync with Supabase and live co-reading presence
+  unawaited(
+    SupabaseService.instance.initialize().then((_) {
+      CoReadingService.instance.initChannel();
+    }).catchError((e) {
+      debugPrint('Background Supabase init notice: $e');
+    }),
+  );
 }

@@ -32,6 +32,38 @@ class FeedPost {
     this.isLiked = false,
     this.isBookmarked = false,
   });
+
+  FeedPost copyWith({
+    String? id,
+    String? userName,
+    String? userInitials,
+    String? avatarUrl,
+    String? actionText,
+    String? timeAgo,
+    PostType? type,
+    BookRecommendation? bookRecommendation,
+    QuotePost? quotePost,
+    int? likes,
+    int? comments,
+    bool? isLiked,
+    bool? isBookmarked,
+  }) {
+    return FeedPost(
+      id: id ?? this.id,
+      userName: userName ?? this.userName,
+      userInitials: userInitials ?? this.userInitials,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      actionText: actionText ?? this.actionText,
+      timeAgo: timeAgo ?? this.timeAgo,
+      type: type ?? this.type,
+      bookRecommendation: bookRecommendation ?? this.bookRecommendation,
+      quotePost: quotePost ?? this.quotePost,
+      likes: likes ?? this.likes,
+      comments: comments ?? this.comments,
+      isLiked: isLiked ?? this.isLiked,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
+    );
+  }
 }
 
 class BookRecommendation {

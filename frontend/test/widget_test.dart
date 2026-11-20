@@ -197,16 +197,18 @@ void main() {
     expect(find.text('Share Card'), findsNothing);
   });
 
-  test('TelegramBotService defaults to lireadbooksbot and migrates legacy usernames', () async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('liread_telegram_bot_name');
-    final botName = await TelegramBotService.instance.getBotUsername();
-    expect(botName, 'lireadbooksbot');
+  testWidgets('TelegramBotService defaults to lireadbooksbot and migrates legacy usernames', (WidgetTester tester) async {
+    await tester.runAsync(() async {
+      SharedPreferences.setMockInitialValues({});
+      final botName = await TelegramBotService.instance.getBotUsername();
+      expect(botName, 'lireadbooksbot');
 
-    // Test legacy migration
-    await prefs.setString('liread_telegram_bot_name', 'BooksFinderBot');
-    final migrated = await TelegramBotService.instance.getBotUsername();
-    expect(migrated, 'lireadbooksbot');
+      // Test legacy migration
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('liread_telegram_bot_name', 'BooksFinderBot');
+      final migrated = await TelegramBotService.instance.getBotUsername();
+      expect(migrated, 'lireadbooksbot');
+    });
   });
 
   test('AppErrorHandler translates technical auth and network errors to friendly messages', () {

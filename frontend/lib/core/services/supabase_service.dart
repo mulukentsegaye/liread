@@ -428,6 +428,7 @@ class SupabaseService {
       final initials = authorName.isNotEmpty
           ? authorName.trim().split(' ').map((e) => e.isNotEmpty ? e[0] : '').take(2).join('').toUpperCase()
           : 'FR';
+      final avatarUrl = profile?['avatar_url'] as String? ?? item['avatar_url'] as String?;
 
       final createdAt = item['created_at'] != null
           ? DateTime.tryParse(item['created_at'])
@@ -473,6 +474,7 @@ class SupabaseService {
         id: item['id'].toString(),
         userName: authorName,
         userInitials: initials.isEmpty ? 'R' : initials,
+        avatarUrl: avatarUrl,
         actionText: postTypeStr == 'finished_book'
             ? 'Finished a book'
             : (isRecommendation ? 'Recommended a book' : 'Saved a passage'),
@@ -559,6 +561,7 @@ class SupabaseService {
       'profiles': {
         'full_name': _currentProfile?['full_name'] ?? (_isGuest ? 'Guest Reader' : 'You'),
         'username': _currentProfile?['username'] ?? 'reader',
+        'avatar_url': _currentProfile?['avatar_url'],
       },
       'post_upvotes': [{'user_id': currentUserId ?? 'guest'}],
       'saved_posts': [],

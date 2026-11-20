@@ -59,19 +59,9 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
     final newLikes = newIsLiked ? post.likes + 1 : (post.likes > 0 ? post.likes - 1 : 0);
 
     setState(() {
-      _posts[index] = FeedPost(
-        id: post.id,
-        userName: post.userName,
-        userInitials: post.userInitials,
-        actionText: post.actionText,
-        timeAgo: post.timeAgo,
-        type: post.type,
-        bookRecommendation: post.bookRecommendation,
-        quotePost: post.quotePost,
+      _posts[index] = post.copyWith(
         likes: newLikes,
-        comments: post.comments,
         isLiked: newIsLiked,
-        isBookmarked: post.isBookmarked,
       );
     });
 
@@ -84,18 +74,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
     final newIsBookmarked = !post.isBookmarked;
 
     setState(() {
-      _posts[index] = FeedPost(
-        id: post.id,
-        userName: post.userName,
-        userInitials: post.userInitials,
-        actionText: post.actionText,
-        timeAgo: post.timeAgo,
-        type: post.type,
-        bookRecommendation: post.bookRecommendation,
-        quotePost: post.quotePost,
-        likes: post.likes,
-        comments: post.comments,
-        isLiked: post.isLiked,
+      _posts[index] = post.copyWith(
         isBookmarked: newIsBookmarked,
       );
     });
@@ -303,6 +282,7 @@ class _DiscoverFeedScreenState extends State<DiscoverFeedScreen>
                           id: 'temp-${DateTime.now().millisecondsSinceEpoch}',
                           userName: authorName,
                           userInitials: initials.isEmpty ? 'Y' : initials,
+                          avatarUrl: profile?['avatar_url'] as String?,
                           actionText: isQuote ? 'Saved a passage' : 'Finished a book',
                           timeAgo: 'Just now',
                           type: isQuote ? PostType.quote : PostType.bookRecommendation,
@@ -659,6 +639,7 @@ class _FeedPostItem extends StatelessWidget {
           FeedPostHeader(
             userName: post.userName,
             userInitials: post.userInitials,
+            avatarUrl: post.avatarUrl,
             actionText: post.actionText,
             timeAgo: post.timeAgo,
           ),

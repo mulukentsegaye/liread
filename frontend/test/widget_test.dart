@@ -5,11 +5,16 @@ import 'package:readers_hub/core/services/app_update_service.dart';
 import 'package:readers_hub/core/theme/theme_controller.dart';
 import 'package:readers_hub/core/utils/error_handler.dart';
 import 'package:readers_hub/core/widgets/app_alert.dart';
+import 'package:readers_hub/core/widgets/reader_avatar.dart';
 import 'package:readers_hub/features/explore/data/open_library_service.dart';
+import 'package:readers_hub/features/explore/data/telegram_bot_service.dart';
 import 'package:readers_hub/features/explore/presentation/widgets/book_details_sheet.dart';
+import 'package:readers_hub/features/feed/domain/post_model.dart';
+import 'package:readers_hub/features/feed/presentation/widgets/feed_post_header.dart';
 import 'package:readers_hub/features/leaderboard/data/reading_session_store.dart';
 import 'package:readers_hub/features/navigation/presentation/main_navigation_shell.dart';
 import 'package:readers_hub/features/onboarding/presentation/onboarding_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -183,11 +188,25 @@ void main() {
     expect(find.text('PDF'), findsOneWidget);
     expect(find.text('Download EPUB (1-Click)'), findsOneWidget);
 
-    // Verify Telegram Bot section
-    expect(find.text('Get via Telegram Bot'), findsOneWidget);
-    expect(find.text('Send to Telegram Bot'), findsOneWidget);
-    expect(find.text('Share Card'), findsOneWidget);
-    expect(find.text('@BooksFinderBot'), findsOneWidget);
+    // Verify Minimalist Telegram section
+    expect(find.text('Get via Telegram'), findsOneWidget);
+    expect(find.text('Telegram'), findsOneWidget);
+    expect(find.text('@BooksFinderBot'), findsNothing);
+    expect(find.text('@LireadBooksBot'), findsNothing);
+    expect(find.text('@lireadbooksbot'), findsNothing);
+    expect(find.text('Share Card'), findsNothing);
+  });
+
+  test('TelegramBotService defaults to lireadbooksbot and migrates legacy usernames', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('liread_telegram_bot_name');
+    final botName = await TelegramBotService.instance.getBotUsername();
+    expect(botName, 'lireadbooksbot');
+
+    // Test legacy migration
+    await prefs.setString('liread_telegram_bot_name', 'BooksFinderBot');
+    final migrated = await TelegramBotService.instance.getBotUsername();
+    expect(migrated, 'lireadbooksbot');
   });
 
   test('AppErrorHandler translates technical auth and network errors to friendly messages', () {
@@ -273,5 +292,50 @@ void main() {
     expect(service.isNewerVersion('1.2.3', '1.1.9'), isFalse);
     // Older major version
     expect(service.isNewerVersion('2.0.0', '1.9.9'), isFalse);
+  });
+
+  testWidgets('FeedPostHeader renders ReaderAvatar with avatarUrl and author details', (WidgetTester tester) async {
+    const avatarUrl = 'https://example.com/avatar.jpg';
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: FeedPostHeader(
+            userName: 'Aman',
+            userInitials: 'A',
+            avatarUrl: avatarUrl,
+            actionText: 'Finished a book',
+            timeAgo: '34d ago',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Aman'), findsOneWidget);
+    expect(find.text('Finished a book · 34d ago'), findsOneWidget);
+    expect(find.byType(ReaderAvatar), findsOneWidget);
+
+    final avatarWidget = tester.widget<ReaderAvatar>(find.byType(ReaderAvatar));
+    expect(avatarWidget.avatarUrl, equals(avatarUrl));
+    expect(avatarWidget.name, equals('Aman'));
+    expect(avatarWidget.initials, equals('A'));
+  });
+
+  test('FeedPost copyWith preserves avatarUrl when likes or bookmarks change', () {
+    const post = FeedPost(
+      id: 'post-1',
+      userName: 'Aman',
+      userInitials: 'A',
+      avatarUrl: 'https://example.com/aman.png',
+      actionText: 'Finished a book',
+      timeAgo: '2h ago',
+      type: PostType.quote,
+      likes: 1,
+      isLiked: false,
+    );
+
+    final updated = post.copyWith(likes: 2, isLiked: true);
+    expect(updated.avatarUrl, equals('https://example.com/aman.png'));
+    expect(updated.likes, equals(2));
+    expect(updated.isLiked, isTrue);
   });
 }

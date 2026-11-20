@@ -52,14 +52,12 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
   double _downloadProgress = 0.0;
   String? _downloadedFilePath;
   String _selectedFormat = 'epub';
-  String _botUsername = TelegramBotService.defaultBotName;
 
   @override
   void initState() {
     super.initState();
     _book = widget.book;
     _fetchDetails();
-    _loadBotUsername();
 
     final active = EbookDownloadService.instance.currentTask.value;
     if (active != null && active.bookId == _book.id) {
@@ -93,11 +91,6 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
     } else if (_isDownloading && (task == null || task.bookId != _book.id)) {
       setState(() => _isDownloading = false);
     }
-  }
-
-  Future<void> _loadBotUsername() async {
-    final bot = await TelegramBotService.instance.getBotUsername();
-    if (mounted) setState(() => _botUsername = bot);
   }
 
   Future<void> _handleDownload() async {
@@ -162,63 +155,9 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
     if (!ok && mounted) {
       AppAlert.show(
         context,
-        message: 'Could not open Telegram with @$_botUsername. Please ensure Telegram is installed.',
+        message: 'Could not open Telegram. Please ensure Telegram is installed.',
         type: AlertType.warning,
       );
-    }
-  }
-
-  Future<void> _handleShareToTelegram() async {
-    await TelegramBotService.instance.shareBookToTelegram(_book);
-  }
-
-  Future<void> _showConfigureBotDialog() async {
-    final controller = TextEditingController(text: _botUsername);
-    final updated = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          'Configure Telegram Bot',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter the Telegram bot username you want Liread to redirect to for book downloads:',
-              style: GoogleFonts.plusJakartaSans(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                prefixText: '@',
-                hintText: 'BooksFinderBot',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (updated != null && updated.isNotEmpty) {
-      await TelegramBotService.instance.setBotUsername(updated);
-      if (mounted) {
-        setState(() => _botUsername = updated.replaceAll('@', ''));
-      }
     }
   }
 
@@ -746,7 +685,7 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
             ],
           ] else ...[
             Text(
-              'Direct DRM-free file downloads are not hosted on Open Library for this copyrighted edition. Use the Telegram bot below to receive or search for this book file.',
+              'Direct DRM-free file downloads are not hosted on Open Library for this copyrighted edition. Use the Telegram button below to request this book file.',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 height: 1.4,
@@ -791,7 +730,7 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                 ),
                 child: const Icon(
                   Icons.send_rounded,
-                  size: 17,
+                  size: 16,
                   color: telegramBlue,
                 ),
               ),
@@ -801,15 +740,16 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Get via Telegram Bot',
+                      'Get via Telegram',
                       style: GoogleFonts.plusJakartaSans(
                         fontWeight: FontWeight.w700,
                         fontSize: 13.5,
                         color: textPrimary,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
-                      'Sends book query & receives file in Telegram',
+                      'Request book file in chat',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 11.5,
                         color: textSecondary,
@@ -818,89 +758,29 @@ class _BookDetailsSheetState extends State<BookDetailsSheet> {
                   ],
                 ),
               ),
-              InkWell(
-                onTap: _showConfigureBotDialog,
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: telegramBlue.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '@$_botUsername',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: telegramBlue,
-                        ),
-                      ),
-                      const SizedBox(width: 3),
-                      const Icon(Icons.edit_outlined,
-                          size: 12, color: telegramBlue),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Redirects to Telegram and submits "${_book.title}" to @$_botUsername so the bot can send you the book file directly.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              height: 1.4,
-              color: textSecondary,
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _handleSendToTelegramBot,
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: const Text('Telegram'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: telegramBlue,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                textStyle: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _handleSendToTelegramBot,
-                  icon: const Icon(Icons.send_rounded, size: 15),
-                  label: const Text('Send to Telegram Bot'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: telegramBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(vertical: 11),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    textStyle: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _handleShareToTelegram,
-                icon: const Icon(Icons.share_outlined, size: 15),
-                label: const Text('Share Card'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: telegramBlue,
-                  side:
-                      BorderSide(color: telegramBlue.withValues(alpha: 0.5)),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 11, horizontal: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  textStyle: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
       ),

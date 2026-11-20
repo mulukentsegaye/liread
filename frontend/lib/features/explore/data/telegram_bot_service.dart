@@ -9,7 +9,7 @@ class TelegramBotService {
   static final TelegramBotService instance = TelegramBotService._();
 
   static const String _prefKey = 'liread_telegram_bot_name';
-  static const String defaultBotName = 'BooksFinderBot';
+  static const String defaultBotName = 'lireadbooksbot';
 
   /// Get currently configured bot username (without @).
   Future<String> getBotUsername() async {
@@ -17,7 +17,13 @@ class TelegramBotService {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString(_prefKey);
       if (saved != null && saved.trim().isNotEmpty) {
-        return saved.trim().replaceAll('@', '');
+        final clean = saved.trim().replaceAll('@', '');
+        // Migrate legacy bot names to the official lireadbooksbot
+        if (clean.toLowerCase() == 'booksfinderbot') {
+          await prefs.setString(_prefKey, defaultBotName);
+          return defaultBotName;
+        }
+        return clean;
       }
     } catch (_) {}
     return defaultBotName;
